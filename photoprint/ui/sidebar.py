@@ -34,20 +34,19 @@ logger = logging.getLogger(__name__)
 
 # Option labels are wrapped in _() so they translate at widget-construction
 # time. The translation lookup is lazy — it happens when each _() call runs.
-# Короткие подписи: число фото + одно слово об ориентации сетки в скобках.
-# Логика: «столбиком/stacked» = одна колонка, «в ряд/side-by-side» = одна строка,
-# «книжная/portrait» = выше чем шире, «альбомная/landscape» = шире чем выше.
+# Простые числовые подписи в формате «cols×rows». Не переводятся —
+# математическая нотация одинакова в обоих языках.
 GRID_OPTIONS: list[tuple[str, GridSpec]] = [
-    (_("1"), GridSpec(1, 1)),
-    (_("2 (stacked)"), GridSpec(1, 2)),
-    (_("2 (side by side)"), GridSpec(2, 1)),
-    (_("4 (2×2)"), GridSpec(2, 2)),
-    (_("6 (portrait)"), GridSpec(2, 3)),
-    (_("6 (landscape)"), GridSpec(3, 2)),
-    (_("8 (portrait)"), GridSpec(2, 4)),
-    (_("8 (landscape)"), GridSpec(4, 2)),
-    (_("9 (3×3)"), GridSpec(3, 3)),
-    (_("16 (4×4)"), GridSpec(4, 4)),
+    ("1", GridSpec(1, 1)),
+    ("2×1", GridSpec(2, 1)),
+    ("1×2", GridSpec(1, 2)),
+    ("2×2", GridSpec(2, 2)),
+    ("3×2", GridSpec(3, 2)),
+    ("2×3", GridSpec(2, 3)),
+    ("4×2", GridSpec(4, 2)),
+    ("2×4", GridSpec(2, 4)),
+    ("3×3", GridSpec(3, 3)),
+    ("4×4", GridSpec(4, 4)),
 ]
 
 PAPER_OPTIONS = ["A4", "A5", "A3", "Letter", "Legal", "10x15", "13x18", "20x30"]
