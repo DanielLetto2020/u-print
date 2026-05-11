@@ -15,6 +15,7 @@ API сознательно синхронный — UI зовёт через wor
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import sqlite3
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 DB_FILE = "photo_index.db"
 
 # Схема. version_info() возвращает ту же версию, что в PRAGMA user_version.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS folders (
@@ -47,12 +48,18 @@ CREATE TABLE IF NOT EXISTS photos (
     width INTEGER,
     height INTEGER,
     exif_iso TEXT,
-    indexed_at INTEGER NOT NULL
+    indexed_at INTEGER NOT NULL,
+    content_hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_photos_folder ON photos(folder);
 CREATE INDEX IF NOT EXISTS idx_photos_name ON photos(name);
 CREATE INDEX IF NOT EXISTS idx_photos_exif ON photos(exif_iso);
+CREATE INDEX IF NOT EXISTS idx_photos_size ON photos(size);
+CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(content_hash);
 """
+
+#: Чанк для потокового SHA-256 — 64 КБ. Хватает, не съедает память даже на DSLR-кадрах.
+_HASH_CHUNK = 65536
 
 
 @dataclass(frozen=True)
@@ -101,6 +108,7 @@ class ScanProgress:
 
 ProgressCallback = Callable[[ScanProgress], None]
 EntryCallback = Callable[[PhotoEntry], None]
+HashProgressCallback = Callable[[int, int], None]  # (done, total)
 
 
 class PhotoIndex:
@@ -120,6 +128,20 @@ class PhotoIndex:
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA_SQL)
+        # Миграция со схемы v1: добавляем content_hash + индекс, если нет.
+        # Свежие БД получают это из CREATE TABLE выше, ALTER упадёт с
+        # OperationalError для них — поглощаем.
+        try:
+            self._conn.execute("ALTER TABLE photos ADD COLUMN content_hash TEXT")
+            self._conn.commit()
+        except sqlite3.OperationalError:
+            pass
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(content_hash)"
+        )
+        self._conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_photos_size ON photos(size)"
+        )
         self._conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         self._conn.commit()
 
@@ -263,10 +285,14 @@ class PhotoIndex:
             logger.warning("Skip %s: %s", path, exc)
             return False
         exif_iso = meta.exif_datetime.isoformat() if meta.exif_datetime else None
+        # content_hash для новых/изменённых файлов сбрасываем — содержимое
+        # могло поменяться, прежний SHA уже не валиден; перевычислим лениво
+        # при следующем поиске дублей.
         self._conn.execute(
             """
-            INSERT INTO photos(path, folder, name, size, mtime, width, height, exif_iso, indexed_at)
-            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO photos(path, folder, name, size, mtime, width, height,
+                               exif_iso, indexed_at, content_hash)
+            VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
             ON CONFLICT(path) DO UPDATE SET
               folder=excluded.folder,
               name=excluded.name,
@@ -275,7 +301,8 @@ class PhotoIndex:
               width=excluded.width,
               height=excluded.height,
               exif_iso=excluded.exif_iso,
-              indexed_at=excluded.indexed_at
+              indexed_at=excluded.indexed_at,
+              content_hash=NULL
             """,
             (
                 str(path),
@@ -335,9 +362,95 @@ class PhotoIndex:
         rows = self._conn.execute(" ".join(sql), params).fetchall()
         return [PhotoEntry.from_row(r) for r in rows]
 
+    # -- Duplicates --------------------------------------------------------
+
+    def compute_missing_hashes(
+        self, progress: HashProgressCallback | None = None
+    ) -> int:
+        """Посчитать SHA-256 для файлов, у которых есть «соседи по размеру».
+
+        Файл-«одиночка» по размеру дубликатом быть не может, поэтому хешируем
+        только тех, у кого есть кандидаты-собратья. Хеш складываем в БД.
+
+        Args:
+            progress: коллбек ``(сделано, всего)``, дёргается каждые 5 файлов.
+
+        Returns:
+            Сколько файлов в итоге было захешировано (может быть 0).
+        """
+        rows = self._conn.execute(
+            """
+            SELECT path FROM photos
+            WHERE content_hash IS NULL
+              AND size IN (
+                  SELECT size FROM photos GROUP BY size HAVING COUNT(*) > 1
+              )
+            ORDER BY size, path
+            """
+        ).fetchall()
+        total = len(rows)
+        if total == 0:
+            if progress:
+                progress(0, 0)
+            return 0
+        for done, row in enumerate(rows, start=1):
+            path = Path(row["path"])
+            digest = _hash_file(path)
+            if digest is not None:
+                self._conn.execute(
+                    "UPDATE photos SET content_hash = ? WHERE path = ?",
+                    (digest, str(path)),
+                )
+            if progress and done % 5 == 0:
+                progress(done, total)
+        self._conn.commit()
+        if progress:
+            progress(total, total)
+        return total
+
+    def find_duplicates(self) -> list[list[PhotoEntry]]:
+        """Группы по 2+ фото с одинаковым SHA-256.
+
+        Возвращает список списков; каждый внутренний список отсортирован по
+        пути (стабильный «оригинал — слева»). Сами группы упорядочены по
+        уменьшающемуся количеству копий.
+        """
+        rows = self._conn.execute(
+            """
+            SELECT * FROM photos
+            WHERE content_hash IS NOT NULL
+              AND content_hash IN (
+                  SELECT content_hash FROM photos
+                  WHERE content_hash IS NOT NULL
+                  GROUP BY content_hash HAVING COUNT(*) > 1
+              )
+            ORDER BY content_hash, path
+            """
+        ).fetchall()
+        groups: dict[str, list[PhotoEntry]] = {}
+        for row in rows:
+            entry = PhotoEntry.from_row(row)
+            groups.setdefault(row["content_hash"], []).append(entry)
+        result = list(groups.values())
+        result.sort(key=lambda g: (-len(g), g[0].name))
+        return result
+
     def close(self) -> None:
         """Аккуратно закрыть соединение с SQLite."""
         self._conn.close()
+
+
+def _hash_file(path: Path) -> str | None:
+    """SHA-256 содержимого файла потоком, или ``None`` если файл не открылся."""
+    h = hashlib.sha256()
+    try:
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(_HASH_CHUNK), b""):
+                h.update(chunk)
+    except OSError as exc:
+        logger.warning("Hash failed for %s: %s", path, exc)
+        return None
+    return h.hexdigest()
 
 
 def _collect_supported_files(folder: Path) -> dict[Path, tuple[int, int]]:

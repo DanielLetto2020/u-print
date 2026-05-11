@@ -157,6 +157,82 @@ def test_on_entry_fires_per_added_photo(index, tmp_path, make_jpeg):
     assert seen == []
 
 
+def test_find_duplicates_empty_when_no_hashes(index, tmp_path, make_jpeg):
+    folder = tmp_path / "shoot"
+    folder.mkdir()
+    make_jpeg(str(folder / "a.jpg"))
+    make_jpeg(str(folder / "b.jpg"))
+    index.add_folder(folder)
+    index.rescan()
+    # хешей ещё нет — find_duplicates пуст
+    assert index.find_duplicates() == []
+
+
+def test_compute_missing_hashes_skips_singletons(index, tmp_path, make_jpeg):
+    folder = tmp_path / "shoot"
+    folder.mkdir()
+    # три файла РАЗНОГО размера — хешировать нечего, все одиночки
+    make_jpeg(str(folder / "a.jpg"), width=100, height=100)
+    make_jpeg(str(folder / "b.jpg"), width=200, height=200)
+    make_jpeg(str(folder / "c.jpg"), width=300, height=300)
+    index.add_folder(folder)
+    index.rescan()
+    hashed = index.compute_missing_hashes()
+    assert hashed == 0
+    assert index.find_duplicates() == []
+
+
+def test_finds_identical_files_across_folders(index, tmp_path, make_jpeg):
+    f1 = tmp_path / "src"
+    f2 = tmp_path / "backup"
+    f1.mkdir()
+    f2.mkdir()
+    # Один и тот же контент в двух разных местах (одинаковые цвет/размер →
+    # детерминированный JPEG → одинаковый SHA).
+    make_jpeg(str(f1 / "shot.jpg"), color=(120, 60, 200))
+    make_jpeg(str(f2 / "shot-copy.jpg"), color=(120, 60, 200))
+    # Уникальный файл другого размера — заведомо одиночка по байтам.
+    make_jpeg(str(f1 / "other.jpg"), width=1024, height=768, color=(10, 200, 10))
+
+    index.add_folder(f1)
+    index.add_folder(f2)
+    index.rescan()
+    index.compute_missing_hashes()
+
+    groups = index.find_duplicates()
+    assert len(groups) == 1
+    names = sorted(e.name for e in groups[0])
+    assert names == ["shot-copy.jpg", "shot.jpg"]
+
+
+def test_modified_file_invalidates_hash(index, tmp_path, make_jpeg):
+    folder = tmp_path / "shoot"
+    folder.mkdir()
+    p1 = make_jpeg(str(folder / "a.jpg"), color=(50, 50, 50))
+    make_jpeg(str(folder / "b.jpg"), color=(50, 50, 50))
+    index.add_folder(folder)
+    index.rescan()
+    index.compute_missing_hashes()
+    assert len(index.find_duplicates()) == 1
+
+    # Перепишем a.jpg другим контентом и обновим mtime
+    import os
+    import time
+    time.sleep(0.01)
+    from PIL import Image
+    Image.new("RGB", (800, 600), (200, 10, 10)).save(p1, "JPEG", quality=85)
+    new_mtime = p1.stat().st_mtime + 10
+    os.utime(p1, (new_mtime, new_mtime))
+
+    index.rescan()  # перезапишет запись, хеш обнулится
+    # find_duplicates пуст пока не хешировать заново
+    assert index.find_duplicates() == []
+    # … а после хеширования вновь, теперь они уже разного размера или
+    # разного контента — дублей не остаётся
+    index.compute_missing_hashes()
+    assert index.find_duplicates() == []
+
+
 def test_remove_folder_drops_its_photos(index, tmp_path, make_jpeg):
     folder = tmp_path / "shoot"
     folder.mkdir()
