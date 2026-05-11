@@ -152,35 +152,38 @@ msgstr "Язык изменён на {name}. Перезапустите PhotoPri
 msgid "OK"
 msgstr "OK"
 
-msgid "1 (full page)"
-msgstr "1 (на весь лист)"
+msgid "1 — full page"
+msgstr "1 — на весь лист"
 
-msgid "2 (1×2)"
-msgstr "2 (1×2)"
+msgid "2 — stacked (1 col × 2 rows)"
+msgstr "2 — столбиком (1 кол. × 2 ряда)"
 
-msgid "2 (2×1)"
-msgstr "2 (2×1)"
+msgid "2 — side by side (2 cols × 1 row)"
+msgstr "2 — в ряд (2 кол. × 1 ряд)"
 
 msgid "4 (2×2)"
 msgstr "4 (2×2)"
 
-msgid "6 (2×3)"
-msgstr "6 (2×3)"
+msgid "6 — portrait (2 cols × 3 rows)"
+msgstr "6 — книжная (2 кол. × 3 ряда)"
 
-msgid "6 (3×2)"
-msgstr "6 (3×2)"
+msgid "6 — landscape (3 cols × 2 rows)"
+msgstr "6 — альбомная (3 кол. × 2 ряда)"
 
-msgid "8 (2×4)"
-msgstr "8 (2×4)"
+msgid "8 — portrait (2 cols × 4 rows)"
+msgstr "8 — книжная (2 кол. × 4 ряда)"
 
-msgid "8 (4×2)"
-msgstr "8 (4×2)"
+msgid "8 — landscape (4 cols × 2 rows)"
+msgstr "8 — альбомная (4 кол. × 2 ряда)"
 
 msgid "9 (3×3)"
 msgstr "9 (3×3)"
 
 msgid "16 (4×4)"
 msgstr "16 (4×4)"
+
+msgid "Visible only on grids with 2+ rows and 2+ columns"
+msgstr "Имеет эффект только при сетке от 2 рядов и 2 колонок"
 
 msgid "Left→right, top→bottom"
 msgstr "Слева→вправо, сверху→вниз"
