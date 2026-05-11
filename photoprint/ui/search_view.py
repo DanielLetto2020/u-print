@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from datetime import datetime
 from pathlib import Path
 
 import gi
@@ -144,6 +145,15 @@ class SearchView(Gtk.Box):
         view_box.append(self._list_btn)
         toolbar.append(view_box)
 
+        # Меню видимости колонок таблицы — доступно только в list-режиме.
+        self._cols_btn = Gtk.MenuButton.new()
+        self._cols_btn.set_icon_name("view-more-symbolic")
+        self._cols_btn.set_tooltip_text(_("Columns"))
+        self._cols_popover = Gtk.Popover()
+        self._cols_btn.set_popover(self._cols_popover)
+        self._cols_btn.set_sensitive(False)
+        toolbar.append(self._cols_btn)
+
         self.append(toolbar)
 
         # -- Прогресс-бар скана --------------------------------------------
@@ -192,11 +202,16 @@ class SearchView(Gtk.Box):
         grid_scroller.set_vexpand(True)
         self._content_stack.add_named(grid_scroller, "grid")
 
-        # ColumnView (виртуальный, базовый — без настраиваемых колонок пока)
+        # ColumnView (виртуальный, с настраиваемыми колонками и сортировкой)
         self._columnview = Gtk.ColumnView.new(self._selection)
         self._columnview.set_show_column_separators(True)
         self._columnview.set_show_row_separators(True)
-        self._build_basic_columns()
+        self._columns: dict[str, Gtk.ColumnViewColumn] = {}
+        self._build_columns()
+        # Сортировка модели связана с сортировщиком ColumnView: клик в шапку
+        # колонки автоматически переключает порядок.
+        self._sort_model.set_sorter(self._columnview.get_sorter())
+        self._build_columns_popover()
         list_scroller = Gtk.ScrolledWindow()
         list_scroller.set_child(self._columnview)
         list_scroller.set_vexpand(True)
@@ -272,46 +287,154 @@ class SearchView(Gtk.Box):
         if texture is not None:
             box._pic.set_paintable(texture)  # type: ignore[attr-defined]
 
-    def _build_basic_columns(self) -> None:
-        """Стартовые колонки для ColumnView (full-fledged настройка — отдельным коммитом)."""
-        # Превью
+    def _build_columns(self) -> None:
+        """Создать все колонки ColumnView. Видимостью каждой управляет попавер."""
         thumb_factory = Gtk.SignalListItemFactory()
         thumb_factory.connect("setup", self._thumb_cell_setup)
         thumb_factory.connect("bind", self._thumb_cell_bind)
-        thumb_col = Gtk.ColumnViewColumn.new(_("Preview"), thumb_factory)
-        thumb_col.set_fixed_width(LIST_THUMB + 16)
-        self._columnview.append_column(thumb_col)
+        self._add_column(
+            "preview", _("Preview"), thumb_factory,
+            fixed_w=LIST_THUMB + 16, default_visible=True,
+        )
+        self._add_column(
+            "name", _("Name"),
+            self._text_factory(lambda e: e.name),
+            expand=True, default_visible=True,
+            sorter=self._make_sorter(lambda e: e.name.lower()),
+        )
+        self._add_column(
+            "date", _("Date"),
+            self._text_factory(
+                lambda e: e.exif_datetime.strftime("%Y-%m-%d %H:%M")
+                if e.exif_datetime else ""
+            ),
+            fixed_w=160, default_visible=True,
+            sorter=self._make_sorter(
+                lambda e: e.exif_datetime or datetime.min
+            ),
+        )
+        self._add_column(
+            "size", _("Size"),
+            self._text_factory(lambda e: _human_size(e.size)),
+            fixed_w=100, default_visible=True,
+            sorter=self._make_sorter(lambda e: e.size),
+        )
+        self._add_column(
+            "dimensions", _("Resolution"),
+            self._text_factory(
+                lambda e: f"{e.width}×{e.height}"
+                if e.width and e.height else "—"
+            ),
+            fixed_w=120, default_visible=True,
+            sorter=self._make_sorter(
+                lambda e: (e.width or 0) * (e.height or 0)
+            ),
+        )
+        self._add_column(
+            "ext", _("Type"),
+            self._text_factory(lambda e: e.path.suffix.lstrip(".").lower() or "—"),
+            fixed_w=80, default_visible=False,
+            sorter=self._make_sorter(lambda e: e.path.suffix.lower()),
+        )
+        self._add_column(
+            "folder", _("Folder"),
+            self._text_factory(lambda e: e.folder.name or str(e.folder)),
+            fixed_w=180, default_visible=False,
+            sorter=self._make_sorter(lambda e: str(e.folder).lower()),
+        )
+        self._add_column(
+            "path", _("Path"),
+            self._text_factory(lambda e: str(e.path)),
+            expand=True, default_visible=False,
+            sorter=self._make_sorter(lambda e: str(e.path).lower()),
+        )
+        self._add_column(
+            "mtime", _("Modified"),
+            self._text_factory(
+                lambda e: datetime.fromtimestamp(e.mtime / 1e9).strftime(
+                    "%Y-%m-%d %H:%M"
+                ) if e.mtime else ""
+            ),
+            fixed_w=160, default_visible=False,
+            sorter=self._make_sorter(lambda e: e.mtime),
+        )
 
-        # Имя
-        name_factory = Gtk.SignalListItemFactory()
-        name_factory.connect("setup", lambda _f, li: li.set_child(self._make_label()))
-        name_factory.connect("bind", lambda _f, li: li.get_child().set_text(
-            li.get_item().entry.name
-        ))
-        name_col = Gtk.ColumnViewColumn.new(_("Name"), name_factory)
-        name_col.set_expand(True)
-        self._columnview.append_column(name_col)
+    def _add_column(
+        self,
+        key: str,
+        title: str,
+        factory: Gtk.ListItemFactory,
+        *,
+        fixed_w: int | None = None,
+        expand: bool = False,
+        default_visible: bool = True,
+        sorter: Gtk.Sorter | None = None,
+    ) -> None:
+        col = Gtk.ColumnViewColumn.new(title, factory)
+        if fixed_w is not None:
+            col.set_fixed_width(fixed_w)
+        if expand:
+            col.set_expand(True)
+        col.set_resizable(True)
+        if sorter is not None:
+            col.set_sorter(sorter)
+        col.set_visible(default_visible)
+        self._columnview.append_column(col)
+        self._columns[key] = col
 
-        # Дата EXIF
-        date_factory = Gtk.SignalListItemFactory()
-        date_factory.connect("setup", lambda _f, li: li.set_child(self._make_label()))
-        date_factory.connect("bind", lambda _f, li: li.get_child().set_text(
-            li.get_item().entry.exif_datetime.strftime("%Y-%m-%d %H:%M")
-            if li.get_item().entry.exif_datetime else ""
-        ))
-        date_col = Gtk.ColumnViewColumn.new(_("Date"), date_factory)
-        date_col.set_fixed_width(160)
-        self._columnview.append_column(date_col)
+    def _text_factory(self, getter) -> Gtk.SignalListItemFactory:
+        """Универсальная фабрика «один Gtk.Label со строкой по getter(entry)»."""
+        factory = Gtk.SignalListItemFactory()
+        factory.connect("setup", lambda _f, li: li.set_child(self._make_label()))
 
-        # Размер
-        size_factory = Gtk.SignalListItemFactory()
-        size_factory.connect("setup", lambda _f, li: li.set_child(self._make_label()))
-        size_factory.connect("bind", lambda _f, li: li.get_child().set_text(
-            _human_size(li.get_item().entry.size)
-        ))
-        size_col = Gtk.ColumnViewColumn.new(_("Size"), size_factory)
-        size_col.set_fixed_width(100)
-        self._columnview.append_column(size_col)
+        def bind(_f, li):
+            li.get_child().set_text(getter(li.get_item().entry))
+
+        factory.connect("bind", bind)
+        return factory
+
+    @staticmethod
+    def _make_sorter(key_fn) -> Gtk.CustomSorter:
+        """Соорудить сортировщик, использующий ``key_fn(PhotoEntry)`` как ключ."""
+
+        def cmp(a: PhotoEntryItem, b: PhotoEntryItem, _ud) -> int:
+            ka, kb = key_fn(a.entry), key_fn(b.entry)
+            # пустые значения в самый конец
+            if ka is None and kb is None:
+                return 0
+            if ka is None:
+                return 1
+            if kb is None:
+                return -1
+            if ka < kb:
+                return -1
+            if ka > kb:
+                return 1
+            return 0
+
+        return Gtk.CustomSorter.new(cmp, None)
+
+    def _build_columns_popover(self) -> None:
+        """Чекбоксы видимости колонок в всплывающем меню рядом с тоглом list."""
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_margin_top(8)
+        box.set_margin_bottom(8)
+        box.set_margin_start(8)
+        box.set_margin_end(8)
+        title = Gtk.Label()
+        title.set_markup(f"<b>{_('Visible columns')}</b>")
+        title.set_halign(Gtk.Align.START)
+        title.set_margin_bottom(4)
+        box.append(title)
+        for key, col in self._columns.items():
+            check = Gtk.CheckButton.new_with_label(col.get_title())
+            check.set_active(col.get_visible())
+            # «preview» не выключаем — без него таблица выглядит странно.
+            if key == "preview":
+                check.set_sensitive(False)
+            check.connect("toggled", lambda c, _col=col: _col.set_visible(c.get_active()))
+            box.append(check)
+        self._cols_popover.set_child(box)
 
     @staticmethod
     def _make_label() -> Gtk.Label:
@@ -398,6 +521,8 @@ class SearchView(Gtk.Box):
     def _on_view_toggle(self, button: Gtk.ToggleButton) -> None:
         if not button.get_active():
             return
+        # Меню колонок имеет смысл только в режиме списка.
+        self._cols_btn.set_sensitive(self._list_btn.get_active())
         self._update_visible_stack()
 
     def _update_visible_stack(self) -> None:
