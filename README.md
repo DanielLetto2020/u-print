@@ -1,96 +1,98 @@
 # u-print
 
-**A GTK4 / libadwaita app for Linux that prints multiple photos per sheet
-(N-up) and helps you find them in the first place.**
+**Приложение на GTK4 / libadwaita для Linux: печать нескольких фото на
+одном листе (N-up) и поиск этих фото в системе.**
 
-The Windows "Print Pictures" wizard with grid layouts has no comfortable
-equivalent on GNOME. `u-print` (the desktop entry is named **PhotoPrint**)
-fills that gap: index the folders where your photos actually live, search
-across them, send a selection straight into a print-layout view, tune the
-sheet, preview it, send to a CUPS printer or export as PDF.
+В Windows есть встроенный мастер «Печать изображений» с раскладками, в
+GNOME удобного аналога нет. `u-print` (в системе называется
+**PhotoPrint**) закрывает эту дыру: индексирует папки, где у вас реально
+лежат фотографии, ищет по ним, отправляет выделенную пачку прямо в
+раскладку для печати, показывает живое превью, печатает через CUPS или
+сохраняет PDF.
 
-Targets **Ubuntu 24.04 LTS** (GNOME 46, Wayland & X11). Builds and runs on
-22.04+ with the same system packages.
+Целевая платформа — **Ubuntu 24.04 LTS** (GNOME 46, Wayland & X11).
+Собирается и работает на 22.04+ с теми же системными пакетами.
 
-> 🇷🇺 Документация на русском: [README.ru.md](./README.ru.md)
-> Repository: <https://github.com/DanielLetto2020/u-print>
-> License: [MIT](./LICENSE)
-
----
-
-## Features
-
-### Search tab — your photo library, indexed
-
-- Add any number of folders to be watched; they are scanned recursively
-  (`.Trash`, `.thumbnails`, dotfiles ignored).
-- Metadata cached in SQLite (`~/.config/photoprint/photo_index.db`):
-  path, size, mtime, dimensions, EXIF date — so a re-launch shows photos
-  instantly without re-walking the filesystem.
-- **Incremental scan**: photos appear in the UI *as the scanner finds them*,
-  not at the end. Thousands of files don't lock up the window.
-- **Virtual scrolling** with `Gtk.GridView` / `Gtk.ColumnView`: rendering
-  cost depends on what's visible, not on the total. 15 000 photos behave
-  the same as 150.
-- **Lazy thumbnails** in a 4-thread pool with an LRU cache — main thread
-  never blocks on PIL decoding.
-- Case-insensitive search by filename (live).
-- Two view modes: **Grid** (thumbnails) and **List** (sortable, columned
-  table). In list mode every column header click sorts; a popover toggles
-  which columns are visible (`Preview` / `Name` / `Date` / `Size` /
-  `Resolution` are on by default; `Type` / `Folder` / `Path` / `Modified`
-  hidden, one click away).
-- **Selection tray**: as soon as you select anything, a strip with the
-  picked thumbnails slides down above the results. Click `×` (or anywhere
-  on a strip tile) to deselect; the broom button clears all.
-- **Click toggles**: a single click adds or removes the photo from the
-  selection — no need to hold Ctrl. Pick five photos across hundreds
-  without losing the first four.
-- **Send to Print** moves the selection into the Print tab.
-
-### Print tab — pick a layout, preview, print
-
-- Drag photos in from Files (Nautilus), the *Add photos…* button, or
-  hand them over from Search. EXIF orientation is normalised at load.
-- Grid presets: **1 / 2 (1×2 or 2×1) / 4 / 6 (2×3 or 3×2) / 8 (2×4 or
-  4×2) / 9 / 16** photos per page.
-- Paper sizes: A3, A4, A5, Letter, Legal, 10×15 cm, 13×18 cm, 20×30 cm.
-- Orientation: portrait / landscape / **auto** (picked from photo aspect
-  + grid mean fit).
-- Fit modes: **Fit** (contain, white margins), **Fill** (cover, crops
-  centred), **Stretch**.
-- Configurable margins per side (mm), gutter between cells, photo border
-  (point width + colour), caption under the photo (filename or EXIF
-  date), auto-rotate to maximise cell coverage.
-- Live preview via `pypdfium2`: the real PDF is rendered at a low DPI
-  and rasterised straight into a `Gdk.Texture`.
-- **Save as PDF…** and **Print…** (the latter opens a printer / copies
-  / colour / quality dialog backed by CUPS).
-- **Named presets**: save the current paper + grid + margins set as
-  e.g. "Passport 4×6" and apply later in a click.
-
-### Across both tabs
-
-- Live language switch between English (default), Russian and Auto
-  (system locale) — via the hamburger menu, restart applies.
-- Session restore on next launch when the last batch is non-empty.
-- Common shortcuts: `Ctrl+O` (add), `Ctrl+P` (print), `Ctrl+S` (save PDF),
-  `Ctrl+A` (select all), `Delete` (remove selection).
-- Follows the system light/dark theme via libadwaita.
-
-## Screenshots
-
-> *Add screenshots here on first release — a clean one of the Search tab
-> with photos loaded, one of the Print tab with a 2×2 layout previewing,
-> and the language menu open.*
+> Репозиторий: <https://github.com/DanielLetto2020/u-print>
+> Лицензия: [MIT](./LICENSE)
 
 ---
 
-## Install
+## Возможности
 
-### From source (developer install)
+### Вкладка Search — ваша библиотека фото с индексом
 
-Tested on Ubuntu 24.04. Python 3.12, GTK 4.14, libadwaita 1.5.
+- Добавляйте сколько угодно папок: они рекурсивно сканируются (`.Trash`,
+  `.thumbnails` и прочий мусор пропускаются).
+- Метаданные кешируются в SQLite (`~/.config/photoprint/photo_index.db`):
+  путь, размер, mtime, разрешение, EXIF-дата — повторный запуск
+  моментально показывает фото без пересканинга диска.
+- **Инкрементальный показ**: фото появляются в UI *по мере того, как
+  индексатор их находит*, а не в конце прохода. 1500+ файлов не вешают
+  окно.
+- **Виртуальный скроллинг** через `Gtk.GridView` / `Gtk.ColumnView`:
+  стоимость отрисовки зависит от того, что видно, а не от общего
+  количества. 15 000 фото ведут себя так же, как 150.
+- **Ленивые миниатюры** в пуле из 4 потоков с LRU-кешем — main-тред
+  никогда не блокируется на PIL.
+- Регистронезависимый поиск по имени (живой).
+- Два режима: **Grid** (миниатюры) и **List** (таблица с сортировкой).
+  В list-режиме клик по шапке колонки сортирует, рядом с тоглом —
+  поповер с галочками: какие колонки показывать (по умолчанию видны
+  `Preview` / `Name` / `Date` / `Size` / `Resolution`, скрыты — `Type` /
+  `Folder` / `Path` / `Modified`).
+- **Полоса выбранных** (tray): как только вы что-то выделили, сверху
+  появляется горизонтальная лента с миниатюрами выбора. Клик по `×` или
+  по плитке в полосе — снимает выделение. Кнопка-метла — очистить всё.
+- **Toggle-клик**: одиночный клик добавляет или убирает фото из выбора —
+  Ctrl держать не нужно. Можно набрать 50 фото из тысячи, не теряя
+  предыдущие.
+- **Send to Print** переносит выделение во вкладку печати.
+
+### Вкладка Print — выбор раскладки, превью, печать
+
+- Перетащите фото из Файлов (Nautilus), кнопкой *Add photos…* или
+  передайте из Search. EXIF-ориентация применяется при загрузке.
+- Сетки: **1 / 2 (1×2 или 2×1) / 4 / 6 (2×3 или 3×2) / 8 (2×4 или 4×2)
+  / 9 / 16** фото на лист.
+- Размеры: A3, A4, A5, Letter, Legal, 10×15 см, 13×18 см, 20×30 см.
+- Ориентация: книжная / альбомная / **авто** (по аспектам фото и
+  средней «полноте» в ячейке).
+- Режимы заполнения: **Fit** (вписать, белые поля), **Fill** (заполнить,
+  обрезать центром), **Stretch**.
+- Настраиваемые поля по сторонам (мм), gutter между ячейками, рамка
+  фото (толщина в пт + цвет), подпись под фото (имя файла или дата
+  EXIF), авто-поворот для максимального заполнения.
+- Живое превью через `pypdfium2`: настоящий PDF рендерится на пониженном
+  DPI и сразу растеризуется в `Gdk.Texture`.
+- **Save as PDF…** и **Print…** (последний — диалог CUPS: принтер,
+  копии, ч/б, качество).
+- **Именованные пресеты**: сохранил текущий paper + grid + margins под
+  именем «Фото на документы 4×6» — потом применяешь одним кликом.
+
+### Общие функции
+
+- Переключение языка: English (по умолчанию), Русский, Auto (по
+  системной локали) — через гамбургер-меню; применяется после
+  перезапуска.
+- Восстановление сессии: если на закрытии в списке были фото — при
+  следующем запуске предложит их вернуть.
+- Горячие клавиши: `Ctrl+O` (добавить), `Ctrl+P` (печать), `Ctrl+S`
+  (сохранить PDF), `Ctrl+A` (выделить всё), `Delete` (удалить выделение).
+- Следует системной светлой/тёмной теме через libadwaita.
+
+## Скриншоты
+
+> *Добавить скриншоты при первом релизе — Search с загруженными фото,
+> Print с раскладкой 2×2 и превью, открытое меню языка.*
+
+---
+
+## Установка
+
+### Из исходников (для разработки)
+
+Проверено на Ubuntu 24.04. Python 3.12, GTK 4.14, libadwaita 1.5.
 
 ```bash
 sudo apt install -y python3-gi python3-cups gir1.2-gtk-4.0 gir1.2-adw-1 \
@@ -104,36 +106,34 @@ python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Compile translations (pure-Python, no msgfmt required)
+# Компиляция переводов (чистый Python, msgfmt не нужен)
 python po/build_mo.py
 
-# Run from the project directory
+# Запуск
 python -m photoprint
 ```
 
-Pass photo paths to preload them:
+Передайте пути к фото, чтобы предзагрузить:
 
 ```bash
 python -m photoprint /path/to/*.jpg
 ```
 
-### As a desktop application (user install, no sudo)
+### Установка для пользователя (без sudo)
 
 ```bash
-# Create a launcher in ~/.local/bin and a .desktop entry in
-# ~/.local/share/applications:
 mkdir -p ~/.local/bin ~/.local/share/applications \
          ~/.local/share/icons/hicolor/scalable/apps \
          ~/.local/share/locale/ru/LC_MESSAGES
 
-# Launcher
+# Лаунчер
 cat > ~/.local/bin/photoprint <<EOF
 #!/usr/bin/env bash
 exec "$(pwd)/.venv/bin/python" -m photoprint "\$@"
 EOF
 chmod +x ~/.local/bin/photoprint
 
-# Desktop integration
+# Десктоп-интеграция
 install -m 644 data/desktop/io.github.photoprint.PhotoPrint.desktop \
                ~/.local/share/applications/io.github.photoprint.PhotoPrint.desktop
 install -m 644 data/icons/io.github.photoprint.PhotoPrint.svg \
@@ -141,29 +141,28 @@ install -m 644 data/icons/io.github.photoprint.PhotoPrint.svg \
 install -m 644 po/ru/LC_MESSAGES/photoprint.mo \
                ~/.local/share/locale/ru/LC_MESSAGES/photoprint.mo
 
-# Refresh GNOME caches so the icon appears in Activities
+# Освежить кеши GNOME, чтобы иконка появилась в Activities
 update-desktop-database ~/.local/share/applications
 gtk-update-icon-cache -t ~/.local/share/icons/hicolor
 ```
 
-After this `photoprint` is on your `PATH` and **PhotoPrint** appears in
-the Activities overview.
+После этого `photoprint` доступен из `PATH`, **PhotoPrint** появится в
+Activities.
 
-### System-wide install on Ubuntu
+### Системная установка на Ubuntu
 
 ```bash
 sudo packaging/install-deb.sh
 ```
 
-The script creates `/opt/photoprint/` with a venv, links a launcher into
-`/usr/local/bin/photoprint` and drops the `.desktop` / icon / translations
-into `/usr/local/share/`. It's not a real `.deb`; for that, wrap this with
-[`dh-virtualenv`](https://github.com/spotify/dh-virtualenv).
+Скрипт создаёт `/opt/photoprint/` с venv, кладёт лаунчер в
+`/usr/local/bin/photoprint`, разворачивает `.desktop` / иконку /
+переводы в `/usr/local/share/`. Это не настоящий `.deb`; для него
+оберните это через [`dh-virtualenv`](https://github.com/spotify/dh-virtualenv).
 
-### Flatpak (recommended for distribution)
+### Flatpak (рекомендую для распространения)
 
-A manifest is provided at
-[`packaging/io.github.photoprint.PhotoPrint.yml`](packaging/io.github.photoprint.PhotoPrint.yml).
+Манифест: [`packaging/io.github.photoprint.PhotoPrint.yml`](packaging/io.github.photoprint.PhotoPrint.yml).
 
 ```bash
 flatpak install flathub org.gnome.Platform//46 org.gnome.Sdk//46
@@ -172,114 +171,113 @@ flatpak-builder --user --install --force-clean build-flatpak \
 flatpak run io.github.photoprint.PhotoPrint
 ```
 
-Flatpak handles GTK runtime and isolates dependencies; CUPS is exposed
-via `--socket=cups`.
+Flatpak тянет GTK-runtime, изолирует зависимости, CUPS пробрасывается
+через `--socket=cups`.
 
 ---
 
-## How to use it
+## Как пользоваться
 
-1. **Launch** the app. The Print tab is shown by default. The header
-   switches between **Search** and **Print**.
-2. **Search** → **🗂 Folder icon** → **Add folder…** → pick e.g.
-   `~/Pictures`. The indexer starts immediately, photos appear as they
-   are found, the progress bar shows the current folder and counter.
-3. Type a query in the search bar to filter by filename. Switch to
-   **list view** to see a sortable table; the **⋯ button** next to the
-   view toggle reveals the column-visibility popover.
-4. Click photos to add or remove from the selection — the selection
-   strip above the results shows the running pick.
-5. **Send N to Print** moves the selection into the Print tab, populates
-   the left photo list, and rebuilds the layout preview.
-6. Tune the layout in the right sidebar — paper, grid, margins, fit
-   mode, border, caption.
-7. **Save PDF…** or **Print…** (CUPS dialog) — both work off the same
-   rendered PDF at 300 DPI.
+1. **Запустите** приложение. По умолчанию открыта вкладка Print, в шапке
+   — переключатель **Search ↔ Print**.
+2. **Search** → **🗂 иконка папки** → **Add folder…** → выберите,
+   например, `~/Pictures`. Индексатор стартует сразу, фото появляются
+   по мере нахождения, прогресс-бар показывает текущую папку и счётчик.
+3. Введите в строку поиска часть имени файла — список фильтруется в
+   реальном времени. Переключитесь в **list-режим**, чтобы видеть
+   таблицу с сортировкой; кнопка **⋯** рядом с тоглом — поповер
+   видимости колонок.
+4. Кликайте по фото, чтобы добавлять или убирать из выделения. Сверху
+   разворачивается полоса выбранных миниатюр.
+5. **Send N to Print** перебрасывает выделение во вкладку печати,
+   заполняет левый список фото и перерисовывает превью.
+6. Настройте раскладку в правой панели — бумага, сетка, поля, режим
+   заполнения, рамка, подпись.
+7. **Save PDF…** или **Print…** (диалог CUPS) — оба используют тот же
+   итоговый PDF на 300 DPI.
 
-Tip: in the language menu (hamburger icon in the header) you can switch
-between English / Русский / Auto; the new language applies after restart.
-
----
-
-## Configuration files
-
-All under `~/.config/photoprint/`:
-
-| File              | Purpose                                                |
-|-------------------|--------------------------------------------------------|
-| `settings.json`   | Last printer, last layout, UI language                 |
-| `presets.json`    | Named layout presets                                   |
-| `session.json`    | Photos and layout of the last unfinished batch         |
-| `photo_index.db`  | SQLite index of watched folders                        |
-
-Delete a file to reset that aspect; the app re-creates it on next
-launch.
+Подсказка: в меню гамбургера в шапке можно переключить язык на
+English / Русский / Auto — применится после перезапуска.
 
 ---
 
-## Architecture (high level)
+## Файлы конфигурации
+
+Все лежат в `~/.config/photoprint/`:
+
+| Файл              | Назначение                                            |
+|-------------------|-------------------------------------------------------|
+| `settings.json`   | Последний принтер, последняя раскладка, язык UI       |
+| `presets.json`    | Именованные пресеты раскладок                         |
+| `session.json`    | Фото и параметры последней незакрытой сессии          |
+| `photo_index.db`  | SQLite-индекс отслеживаемых папок                     |
+
+Удалите файл, чтобы сбросить соответствующий аспект — приложение
+пересоздаст его при следующем запуске.
+
+---
+
+## Архитектура (верхнеуровнево)
 
 ```
 photoprint/
 ├── core/
-│   ├── layout.py        Pure planner: photos + params → LayoutPlan (mm)
+│   ├── layout.py        Чистый планировщик: фото + параметры → LayoutPlan (мм)
 │   ├── renderer.py      LayoutPlan + reportlab → PDF
-│   ├── image_loader.py  PIL + EXIF + HEIC + thumbnail LRU
-│   ├── photo_index.py   SQLite-backed folder index
-│   ├── printer.py       pycups wrapper
-│   └── settings.py      JSON persistence (~/.config/photoprint/)
+│   ├── image_loader.py  PIL + EXIF + HEIC + кеш миниатюр
+│   ├── photo_index.py   SQLite-индекс папок
+│   ├── printer.py       Обёртка над pycups
+│   └── settings.py      JSON-настройки (~/.config/photoprint/)
 ├── ui/
-│   ├── window.py        Adw.ApplicationWindow with Adw.ViewStack
-│   ├── search_view.py   Search tab with GridView/ColumnView + tray
-│   ├── photo_list.py    PrintView photo column
-│   ├── sidebar.py       Layout settings
-│   ├── preview.py       pypdfium2 → Gdk.Texture preview
-│   ├── print_dialog.py  CUPS printer + options dialog
-│   ├── thumbnail_loader.py  Thread-pool LRU loader
-│   └── photo_item_model.py  GObject wrapper for Gio.ListStore
+│   ├── window.py        Adw.ApplicationWindow с Adw.ViewStack
+│   ├── search_view.py   Вкладка Search с GridView/ColumnView + tray
+│   ├── photo_list.py    Колонка фото в Print
+│   ├── sidebar.py       Настройки раскладки
+│   ├── preview.py       pypdfium2 → Gdk.Texture превью
+│   ├── print_dialog.py  Диалог CUPS принтера + опций
+│   ├── thumbnail_loader.py  ThreadPool + LRU загрузчик
+│   └── photo_item_model.py  GObject-обёртка для Gio.ListStore
 └── i18n.py              Gettext bootstrap + DEFAULT_LANGUAGE = "en"
 ```
 
-Layout coordinates are in **millimetres, top-left origin**. The renderer
-flips to PDF's bottom-left points only when emitting. Everything else in
-the UI stays in mm.
+Координаты раскладки — **мм, начало в верхнем-левом углу**. Перевод в
+PDF-точки (нижний-левый) делается только в рендерере.
 
 ---
 
-## Translations
+## Локализация
 
-Strings are wrapped with `_()` from `photoprint.i18n`. Russian catalogue
-ships in `po/ru/`. To compile:
+Строки обёрнуты `_()` из `photoprint.i18n`. Русский каталог — в
+`po/ru/`. Компиляция:
 
 ```bash
 python po/build_mo.py
 ```
 
-To add a new language, copy `po/photoprint.pot` into
-`po/<lang>/LC_MESSAGES/photoprint.po`, fill in `msgstr`, run the build
-script again.
+Чтобы добавить язык: скопируйте `po/photoprint.pot` в
+`po/<lang>/LC_MESSAGES/photoprint.po`, переведите `msgstr`, снова
+запустите скрипт.
 
-The active language is stored as `language` in `settings.json` and can
-be changed at runtime through the hamburger menu (restart applies).
+Активный язык хранится как `language` в `settings.json` и меняется в
+рантайме через меню (применится после рестарта).
 
 ---
 
-## Development
+## Разработка
 
 ```bash
-# Tests (31, fast)
+# Тесты (31, быстрые)
 pytest -q
 
-# Lint + format
+# Линт + форматирование
 ruff check photoprint tests
 ruff format photoprint tests
 ```
 
-Tests cover the pure-function planner (`core/layout.py`), the PDF
-renderer (`core/renderer.py`), and the SQLite index
-(`core/photo_index.py`).
+Покрытие: чистый планировщик (`core/layout.py`), PDF-рендерер
+(`core/renderer.py`), SQLite-индекс (`core/photo_index.py`).
 
-CI-friendly checks:
+CI-friendly:
 
 ```bash
 pytest -q && ruff check photoprint tests
@@ -287,59 +285,58 @@ pytest -q && ruff check photoprint tests
 
 ---
 
-## System dependencies — why each one
+## Зачем нужны системные пакеты
 
-| Library             | What for                                  | Apt package                            |
-|---------------------|-------------------------------------------|----------------------------------------|
-| GTK 4 + libadwaita  | Window + widgets                          | `gir1.2-gtk-4.0`, `gir1.2-adw-1`       |
-| PyGObject           | Python ↔ GTK bridge                       | `python3-gi`                           |
-| pycups              | CUPS bindings (print, list printers)      | `python3-cups`                         |
-| libheif             | HEIC / HEIF decoding                      | `libheif1`, `libheif-plugin-libde265`  |
-| libcups2-dev        | Only if installing `pycups` from pip      | `libcups2-dev`                         |
+| Библиотека          | Назначение                                  | Пакет apt                              |
+|---------------------|---------------------------------------------|----------------------------------------|
+| GTK 4 + libadwaita  | Окно + виджеты                              | `gir1.2-gtk-4.0`, `gir1.2-adw-1`       |
+| PyGObject           | Питон ↔ GTK мост                            | `python3-gi`                           |
+| pycups              | Бинды CUPS (печать, список принтеров)       | `python3-cups`                         |
+| libheif             | Декодирование HEIC / HEIF                   | `libheif1`, `libheif-plugin-libde265`  |
+| libcups2-dev        | Только если ставить `pycups` через pip      | `libcups2-dev`                         |
 
-PyGObject and pycups come from the system Python via
-`--system-site-packages`. Everything else (`Pillow`, `pillow-heif`,
-`reportlab`, `pypdfium2`, `platformdirs`) lives in the project venv.
+PyGObject и pycups берутся из системного Python через
+`--system-site-packages`. Остальное (`Pillow`, `pillow-heif`,
+`reportlab`, `pypdfium2`, `platformdirs`) ставится в venv проекта.
 
 ---
 
 ## Roadmap
 
-Curated next-step ideas live in [`idea.txt`](./idea.txt) — 20 entries
-covering passport-photo templates, crop marks, ICC profiles, soft
-proofing, per-photo cropping editor and so on. Priorities are at the
-bottom of that file.
+Список идей развития — в [`idea.txt`](./idea.txt) (20 пунктов: шаблоны
+фото на документы, линии реза, ICC-профили, soft-proofing, мини-редактор
+для кадрирования и т.д.). Приоритеты — в конце файла.
 
-If you implement one of them, the recommended workflow is:
+При реализации фичи:
 
-1. Create a feature branch off `main`.
-2. Keep commit messages in Russian (the project conventions) or English —
-   whichever is consistent with what's already in `git log`.
-3. Run `pytest && ruff check` before pushing.
-4. Open a PR.
+1. Создайте ветку от `main`.
+2. Сообщения коммитов — на русском (как в текущем `git log`) или на
+   английском, главное, чтобы единообразно.
+3. Перед пушем — `pytest && ruff check`.
+4. Откройте PR.
 
 ---
 
-## Gotchas worth flagging
+## Подводные камни
 
-- **Wayland drag-and-drop** uses `Gtk.DropTarget` with `Gdk.FileList`,
-  not the old `Gtk.TargetList`.
-- **EXIF orientation** is normalised at load via
-  `PIL.ImageOps.exif_transpose`; the planner sees already-oriented
-  dimensions.
-- **DPI sanity**: photos are downscaled to no more than 300 DPI at their
-  printed size before being embedded in the PDF — a 50 MP DSLR shot put
-  into a 5×7 cm cell does not bloat the file or stall the printer.
-- **PDF coordinates** are bottom-left; conversion is centralised in
+- **Drag-and-drop в Wayland** работает через `Gtk.DropTarget` с
+  `Gdk.FileList`, не через старый `Gtk.TargetList`.
+- **EXIF-ориентация** применяется при загрузке через
+  `PIL.ImageOps.exif_transpose`; планировщик получает уже корректные
+  размеры.
+- **Здравый DPI**: фото даунскейлятся до не более 300 DPI на печатном
+  размере перед вставкой в PDF — 50-мегапиксельный кадр в ячейке 5×7 см
+  не раздувает файл и не вешает принтер.
+- **PDF-координаты** — нижний-левый угол; конверсия только в
   `core/renderer.py`.
-- **SQLite + threads**: the photo index opens its connection with
-  `check_same_thread=False`. The scanner runs in a worker thread; the UI
-  performs queries on the main thread. No concurrent writers — the UI
-  disables the Rescan button while a scan is in progress.
+- **SQLite и потоки**: индекс открывает соединение с
+  `check_same_thread=False`. Сканер работает в worker-треде, UI делает
+  запросы из main-треда. Одновременных писателей нет — кнопка Rescan
+  блокируется на время прохода.
 
 ---
 
-## License
+## Лицензия
 
-MIT — see [LICENSE](./LICENSE). Translations are derivative under the
-same terms.
+MIT — см. [LICENSE](./LICENSE). Переводы — производные под той же
+лицензией.
