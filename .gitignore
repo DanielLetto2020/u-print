@@ -9,3 +9,6 @@ dist/
 *.spec
 .coverage
 htmlcov/
+
+# Локальные заметки и идеи, не для публикации
+idea.txt
