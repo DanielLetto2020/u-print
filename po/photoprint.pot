@@ -138,3 +138,9 @@ msgstr ""
 
 msgid "Restore"
 msgstr ""
+
+msgid "Taken: {date}"
+msgstr ""
+
+msgid "Modified: {date}"
+msgstr ""

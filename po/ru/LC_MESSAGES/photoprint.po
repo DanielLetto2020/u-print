@@ -274,3 +274,9 @@ msgstr "В прошлый раз было загружено {n} фото."
 
 msgid "Images"
 msgstr "Изображения"
+
+msgid "Taken: {date}"
+msgstr "Снято: {date}"
+
+msgid "Modified: {date}"
+msgstr "Изменено: {date}"

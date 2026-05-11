@@ -250,6 +250,11 @@ class SearchView(Gtk.Box):
         # Сортировка модели связана с сортировщиком ColumnView: клик в шапку
         # колонки автоматически переключает порядок.
         self._sort_model.set_sorter(self._columnview.get_sorter())
+        # По умолчанию — свежие сверху (mtime, по убыванию). Действует и в
+        # grid-режиме, так как обе вкладки делят одну SortListModel.
+        self._columnview.sort_by_column(
+            self._columns["mtime"], Gtk.SortType.DESCENDING
+        )
         self._build_columns_popover()
         list_scroller = Gtk.ScrolledWindow()
         list_scroller.set_child(self._columnview)
@@ -282,7 +287,7 @@ class SearchView(Gtk.Box):
     # -- Factories --------------------------------------------------------
 
     def _grid_setup(self, _factory, list_item: Gtk.ListItem) -> None:
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         box.add_css_class("card")
         box.set_margin_top(2)
         box.set_margin_bottom(2)
@@ -299,12 +304,27 @@ class SearchView(Gtk.Box):
         label.set_ellipsize(3)
         label.set_max_width_chars(18)
         label.add_css_class("caption")
-        label.set_margin_bottom(4)
+        # Две компактные строки с датами под именем.
+        taken_label = Gtk.Label()
+        taken_label.add_css_class("caption")
+        taken_label.add_css_class("dim-label")
+        taken_label.set_ellipsize(3)
+        taken_label.set_max_width_chars(20)
+        modified_label = Gtk.Label()
+        modified_label.add_css_class("caption")
+        modified_label.add_css_class("dim-label")
+        modified_label.set_ellipsize(3)
+        modified_label.set_max_width_chars(20)
+        modified_label.set_margin_bottom(4)
         box.append(pic)
         box.append(label)
-        box._pic = pic        # type: ignore[attr-defined]
-        box._label = label    # type: ignore[attr-defined]
-        box._current = None   # type: ignore[attr-defined]
+        box.append(taken_label)
+        box.append(modified_label)
+        box._pic = pic                        # type: ignore[attr-defined]
+        box._label = label                    # type: ignore[attr-defined]
+        box._taken_label = taken_label        # type: ignore[attr-defined]
+        box._modified_label = modified_label  # type: ignore[attr-defined]
+        box._current = None                   # type: ignore[attr-defined]
         self._install_toggle_gesture(box, list_item)
         list_item.set_child(box)
 
@@ -314,6 +334,22 @@ class SearchView(Gtk.Box):
         entry = item.entry
         box._label.set_text(entry.name)  # type: ignore[attr-defined]
         box._pic.set_paintable(None)     # type: ignore[attr-defined]
+        # Снято / Изменено — две компактные строки. Если EXIF-даты нет,
+        # ставим прочерк, чтобы вёрстка не «прыгала».
+        taken = (
+            entry.exif_datetime.strftime("%Y-%m-%d")
+            if entry.exif_datetime else "—"
+        )
+        modified = (
+            datetime.fromtimestamp(entry.mtime / 1e9).strftime("%Y-%m-%d")
+            if entry.mtime else "—"
+        )
+        box._taken_label.set_text(  # type: ignore[attr-defined]
+            _("Taken: {date}").format(date=taken)
+        )
+        box._modified_label.set_text(  # type: ignore[attr-defined]
+            _("Modified: {date}").format(date=modified)
+        )
         path = entry.path
         box._current = path              # type: ignore[attr-defined]
         self._loader.get(path, THUMB_SIZE, lambda tex,
@@ -423,7 +459,7 @@ class SearchView(Gtk.Box):
                     "%Y-%m-%d %H:%M"
                 ) if e.mtime else ""
             ),
-            fixed_w=160, default_visible=False,
+            fixed_w=160, default_visible=True,
             sorter=self._make_sorter(lambda e: e.mtime),
         )
 
