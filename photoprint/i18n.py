@@ -9,7 +9,7 @@ transparently for any modules that imported ``gettext``.
 Language selection priority:
 1. ``language`` field in ``~/.config/photoprint/settings.json`` (if not ``auto``).
 2. The ``LANGUAGE`` / ``LANG`` environment variables.
-3. Hard default: Russian.
+3. Hard default: English.
 
 Catalogue search path: the source tree's ``po/`` directory (handy during
 development), then ``~/.local/share/locale``, then the system locations.
@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 
 DOMAIN = "photoprint"
-DEFAULT_LANGUAGE = "ru"
+DEFAULT_LANGUAGE = "en"
 
 # Active translation. Updated by install(). Indirected through this module
 # so all `from photoprint.i18n import gettext as _` callers re-read it on

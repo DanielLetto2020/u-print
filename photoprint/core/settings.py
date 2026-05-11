@@ -57,8 +57,8 @@ class AppSettings:
     last_printer: str = ""
     last_dir: str = ""
     last_layout: dict[str, Any] = field(default_factory=dict)
-    # UI language: "ru", "en", or "auto" (follow system locale).
-    language: str = "ru"
+    # UI language: "en" (default), "ru", or "auto" (follow system locale).
+    language: str = "en"
 
 
 def load_settings() -> AppSettings:
@@ -75,7 +75,7 @@ def load_settings() -> AppSettings:
         last_printer=raw.get("last_printer", ""),
         last_dir=raw.get("last_dir", ""),
         last_layout=raw.get("last_layout", {}),
-        language=raw.get("language", "ru"),
+        language=raw.get("language", "en"),
     )
 
 
