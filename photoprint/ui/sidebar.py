@@ -34,18 +34,18 @@ logger = logging.getLogger(__name__)
 
 # Option labels are wrapped in _() so they translate at widget-construction
 # time. The translation lookup is lazy — it happens when each _() call runs.
-# GridSpec(cols, rows): cols — сколько колонок, rows — сколько строк.
-# Подписи дают подсказку «как именно» — чтобы пользователь не гадал,
-# что значит «1×2» в каждой конкретной мысленной модели.
+# Короткие подписи: число фото + одно слово об ориентации сетки в скобках.
+# Логика: «столбиком/stacked» = одна колонка, «в ряд/side-by-side» = одна строка,
+# «книжная/portrait» = выше чем шире, «альбомная/landscape» = шире чем выше.
 GRID_OPTIONS: list[tuple[str, GridSpec]] = [
-    (_("1 — full page"), GridSpec(1, 1)),
-    (_("2 — stacked (1 col × 2 rows)"), GridSpec(1, 2)),
-    (_("2 — side by side (2 cols × 1 row)"), GridSpec(2, 1)),
+    (_("1"), GridSpec(1, 1)),
+    (_("2 (stacked)"), GridSpec(1, 2)),
+    (_("2 (side by side)"), GridSpec(2, 1)),
     (_("4 (2×2)"), GridSpec(2, 2)),
-    (_("6 — portrait (2 cols × 3 rows)"), GridSpec(2, 3)),
-    (_("6 — landscape (3 cols × 2 rows)"), GridSpec(3, 2)),
-    (_("8 — portrait (2 cols × 4 rows)"), GridSpec(2, 4)),
-    (_("8 — landscape (4 cols × 2 rows)"), GridSpec(4, 2)),
+    (_("6 (portrait)"), GridSpec(2, 3)),
+    (_("6 (landscape)"), GridSpec(3, 2)),
+    (_("8 (portrait)"), GridSpec(2, 4)),
+    (_("8 (landscape)"), GridSpec(4, 2)),
     (_("9 (3×3)"), GridSpec(3, 3)),
     (_("16 (4×4)"), GridSpec(4, 4)),
 ]
