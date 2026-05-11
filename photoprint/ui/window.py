@@ -41,6 +41,7 @@ from photoprint.core.settings import (  # noqa: E402
 from photoprint.ui.photo_list import PhotoListWidget  # noqa: E402
 from photoprint.ui.preview import PreviewWidget  # noqa: E402
 from photoprint.ui.print_dialog import PrintDialog  # noqa: E402
+from photoprint.ui.search_view import SearchView  # noqa: E402
 from photoprint.ui.sidebar import SettingsSidebar  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -62,8 +63,9 @@ class MainWindow(Adw.ApplicationWindow):
         # -- Action group (must exist before any menu binding references it) --
         self._install_action_group()
 
-        # -- HeaderBar with actions ---------------------------------------
+        # -- HeaderBar with ViewSwitcher as title -------------------------
         header = Adw.HeaderBar()
+
         self._presets_menu_btn = Gtk.MenuButton()
         self._presets_menu_btn.set_icon_name("starred-symbolic")
         self._presets_menu_btn.set_tooltip_text(_("Presets"))
@@ -88,11 +90,10 @@ class MainWindow(Adw.ApplicationWindow):
         self._build_main_menu()
         header.pack_end(self._main_menu_btn)
 
-        # -- Main split (photo list | center) ----------------------------
+        # -- Print page content (photo list | preview | sidebar) ---------
         self._photo_list = PhotoListWidget()
         self._photo_list.connect("photos-changed", self._on_photos_changed)
 
-        # Right side: preview + settings sidebar (paned)
         self._preview = PreviewWidget()
         self._sidebar = SettingsSidebar()
         self._sidebar.connect("params-changed", self._on_params_changed)
@@ -103,7 +104,6 @@ class MainWindow(Adw.ApplicationWindow):
         right_paned.set_resize_start_child(True)
         right_paned.set_shrink_start_child(False)
         right_paned.set_shrink_end_child(False)
-        # preview слева занимает то, что осталось от окна 1280 — sidebar 380
         right_paned.set_position(900)
 
         main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -115,10 +115,34 @@ class MainWindow(Adw.ApplicationWindow):
         main_paned.set_resize_start_child(False)
         main_paned.set_position(360)
 
+        # -- Search page -------------------------------------------------
+        self._search_view = SearchView()
+        self._search_view.connect("send-to-print", self._on_send_to_print)
+
+        # -- ViewStack switcher ------------------------------------------
+        self._view_stack = Adw.ViewStack()
+        self._view_stack.add_titled_with_icon(
+            self._search_view, "search", _("Search"), "system-search-symbolic"
+        )
+        self._view_stack.add_titled_with_icon(
+            main_paned, "print", _("Print"), "printer-symbolic"
+        )
+        # Стартуем на вкладке Print — то, что собирали раньше.
+        self._view_stack.set_visible_child_name("print")
+        self._view_stack.connect("notify::visible-child-name", self._on_view_changed)
+
+        switcher = Adw.ViewSwitcher()
+        switcher.set_stack(self._view_stack)
+        switcher.set_policy(Adw.ViewSwitcherPolicy.WIDE)
+        header.set_title_widget(switcher)
+
         toolbar_view = Adw.ToolbarView()
         toolbar_view.add_top_bar(header)
-        toolbar_view.set_content(main_paned)
+        toolbar_view.set_content(self._view_stack)
         self.set_content(toolbar_view)
+
+        # Сразу синхронизируем видимость print-only кнопок.
+        self._on_view_changed()
 
         # -- Keyboard shortcuts ------------------------------------------
         self._install_shortcuts()
@@ -144,6 +168,20 @@ class MainWindow(Adw.ApplicationWindow):
     def add_photos(self, paths: list[Path]) -> None:
         """Append photos by path. Triggers a re-render."""
         self._photo_list.add_paths(paths)
+
+    # -- Views ---------------------------------------------------------------
+
+    def _on_view_changed(self, *_args) -> None:
+        """Show print-only action buttons only on the Print page."""
+        is_print = self._view_stack.get_visible_child_name() == "print"
+        self._save_pdf_btn.set_visible(is_print)
+        self._print_btn.set_visible(is_print)
+        self._presets_menu_btn.set_visible(is_print)
+
+    def _on_send_to_print(self, _view, paths) -> None:
+        """Принять выбранные фото из Search и переключиться на Print."""
+        self._photo_list.add_paths([Path(p) for p in paths])
+        self._view_stack.set_visible_child_name("print")
 
     # -- Shortcuts -----------------------------------------------------------
 
