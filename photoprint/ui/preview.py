@@ -19,16 +19,23 @@ import gi
 gi.require_version("Gtk", "4.0")
 
 import pypdfium2 as pdfium  # noqa: E402
-from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, GObject, Gtk  # noqa: E402
 
 from photoprint.core.layout import LayoutPlan  # noqa: E402
 from photoprint.core.renderer import PREVIEW_DPI, render_plan_to_pdf  # noqa: E402
+from photoprint.i18n import gettext as _  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
 
 class PreviewWidget(Gtk.Box):
     """Pagination strip + the rendered page image."""
+
+    __gsignals__ = {
+        # Просим главное окно напечатать только текущую страницу.
+        # Аргумент — индекс страницы (0-based).
+        "print-page-requested": (GObject.SignalFlags.RUN_FIRST, None, (int,)),
+    }
 
     def __init__(self) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -37,20 +44,33 @@ class PreviewWidget(Gtk.Box):
         self.set_margin_start(6)
         self.set_margin_end(6)
 
-        # Pagination bar -------------------------------------------------------
+        # Pagination + per-page print bar -----------------------------------
         bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         bar.set_halign(Gtk.Align.CENTER)
         self._prev_btn = Gtk.Button.new_from_icon_name("go-previous-symbolic")
-        self._prev_btn.set_tooltip_text("Previous page")
+        self._prev_btn.set_tooltip_text(_("Previous page"))
         self._prev_btn.connect("clicked", self._on_prev)
         self._next_btn = Gtk.Button.new_from_icon_name("go-next-symbolic")
-        self._next_btn.set_tooltip_text("Next page")
+        self._next_btn.set_tooltip_text(_("Next page"))
         self._next_btn.connect("clicked", self._on_next)
         self._label = Gtk.Label(label="—")
         self._label.add_css_class("dim-label")
+
+        self._print_page_btn = Gtk.Button.new_from_icon_name(
+            "document-print-symbolic"
+        )
+        self._print_page_btn.set_tooltip_text(_("Print this page only"))
+        self._print_page_btn.connect("clicked", self._on_print_page)
+
         bar.append(self._prev_btn)
         bar.append(self._label)
         bar.append(self._next_btn)
+        # Небольшой разделитель и кнопка печати одной страницы.
+        sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        sep.set_margin_start(4)
+        sep.set_margin_end(4)
+        bar.append(sep)
+        bar.append(self._print_page_btn)
         self.append(bar)
 
         # Picture in a scroller -----------------------------------------------
@@ -150,6 +170,7 @@ class PreviewWidget(Gtk.Box):
     def _update_controls(self) -> None:
         self._prev_btn.set_sensitive(self._page_index > 0)
         self._next_btn.set_sensitive(self._page_index + 1 < self._page_count)
+        self._print_page_btn.set_sensitive(self._page_count > 0)
 
     def _on_prev(self, _btn) -> None:
         if self._page_index > 0:
@@ -162,3 +183,8 @@ class PreviewWidget(Gtk.Box):
             self._page_index += 1
             self._show_current_page()
             self._update_controls()
+
+    def _on_print_page(self, _btn) -> None:
+        if self._page_count == 0:
+            return
+        self.emit("print-page-requested", self._page_index)

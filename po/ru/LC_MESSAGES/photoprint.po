@@ -253,3 +253,12 @@ msgstr "Снято: {date}"
 
 msgid "Modified: {date}"
 msgstr "Изменено: {date}"
+
+msgid "Previous page"
+msgstr "Предыдущая страница"
+
+msgid "Next page"
+msgstr "Следующая страница"
+
+msgid "Print this page only"
+msgstr "Напечатать только эту страницу"

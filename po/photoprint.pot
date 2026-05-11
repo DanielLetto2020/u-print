@@ -144,3 +144,12 @@ msgstr ""
 
 msgid "Modified: {date}"
 msgstr ""
+
+msgid "Previous page"
+msgstr ""
+
+msgid "Next page"
+msgstr ""
+
+msgid "Print this page only"
+msgstr ""

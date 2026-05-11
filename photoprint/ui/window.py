@@ -59,6 +59,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._presets = load_presets()
         self._render_timeout: int | None = None
         self._last_plan: LayoutPlan | None = None
+        # План, который сейчас «улетает» в CUPS — может отличаться от
+        # _last_plan, если печатаем только одну страницу из превью.
+        self._plan_to_print: LayoutPlan | None = None
 
         # -- Action group (must exist before any menu binding references it) --
         self._install_action_group()
@@ -95,6 +98,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._photo_list.connect("photos-changed", self._on_photos_changed)
 
         self._preview = PreviewWidget()
+        self._preview.connect("print-page-requested", self._on_print_current_page)
         self._sidebar = SettingsSidebar()
         self._sidebar.connect("params-changed", self._on_params_changed)
 
@@ -238,9 +242,24 @@ class MainWindow(Adw.ApplicationWindow):
     # -- Print ---------------------------------------------------------------
 
     def _on_print(self) -> None:
+        """Кнопка «Print…» в шапке — печатаем весь LayoutPlan."""
         if not self._last_plan or self._last_plan.page_count == 0:
             return
+        self._open_print_dialog(self._last_plan)
 
+    def _on_print_current_page(self, _widget, page_index: int) -> None:
+        """Кнопка «печать страницы» рядом с пагинацией превью."""
+        if not self._last_plan or page_index >= self._last_plan.page_count:
+            return
+        single = LayoutPlan(
+            params=self._last_plan.params,
+            pages=(self._last_plan.pages[page_index],),
+        )
+        self._open_print_dialog(single)
+
+    def _open_print_dialog(self, plan: LayoutPlan) -> None:
+        """Показать диалог CUPS и напечатать ``plan`` по результату."""
+        self._plan_to_print = plan
         dialog = PrintDialog(
             default_printer=self._settings.last_printer,
             on_result=self._handle_print_result,
@@ -248,7 +267,9 @@ class MainWindow(Adw.ApplicationWindow):
         dialog.present(self)
 
     def _handle_print_result(self, printer: str | None, opts: PrintOptions) -> None:
-        if printer is None or self._last_plan is None:
+        plan = self._plan_to_print
+        self._plan_to_print = None
+        if printer is None or plan is None:
             return
         try:
             fd, name = tempfile.mkstemp(prefix="photoprint-", suffix=".pdf")
@@ -256,7 +277,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             os.close(fd)
             pdf_path = Path(name)
-            render_plan_to_pdf(self._last_plan, pdf_path, dpi=DEFAULT_DPI)
+            render_plan_to_pdf(plan, pdf_path, dpi=DEFAULT_DPI)
             job_id = print_pdf(printer, pdf_path, opts, title="PhotoPrint")
             logger.info("Submitted CUPS job %s on %s", job_id, printer)
             self._settings.last_printer = printer
