@@ -182,6 +182,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._save_pdf_btn.set_visible(is_print)
         self._print_btn.set_visible(is_print)
         self._presets_menu_btn.set_visible(is_print)
+        # При входе на Search скролл должен быть сверху (свежие фото — там).
+        if not is_print:
+            GLib.idle_add(self._search_view.scroll_to_top)
 
     def _on_send_to_print(self, _view, paths) -> None:
         """Принять выбранные фото из Search и переключиться на Print."""

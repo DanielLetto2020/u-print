@@ -236,10 +236,10 @@ class SearchView(Gtk.Box):
         self._gridview.set_max_columns(20)
         self._gridview.set_min_columns(2)
         self._gridview.set_enable_rubberband(True)
-        grid_scroller = Gtk.ScrolledWindow()
-        grid_scroller.set_child(self._gridview)
-        grid_scroller.set_vexpand(True)
-        self._content_stack.add_named(grid_scroller, "grid")
+        self._grid_scroller = Gtk.ScrolledWindow()
+        self._grid_scroller.set_child(self._gridview)
+        self._grid_scroller.set_vexpand(True)
+        self._content_stack.add_named(self._grid_scroller, "grid")
 
         # ColumnView (виртуальный, с настраиваемыми колонками и сортировкой)
         self._columnview = Gtk.ColumnView.new(self._selection)
@@ -256,10 +256,10 @@ class SearchView(Gtk.Box):
             self._columns["mtime"], Gtk.SortType.DESCENDING
         )
         self._build_columns_popover()
-        list_scroller = Gtk.ScrolledWindow()
-        list_scroller.set_child(self._columnview)
-        list_scroller.set_vexpand(True)
-        self._content_stack.add_named(list_scroller, "list")
+        self._list_scroller = Gtk.ScrolledWindow()
+        self._list_scroller.set_child(self._columnview)
+        self._list_scroller.set_vexpand(True)
+        self._content_stack.add_named(self._list_scroller, "list")
 
         self.append(self._content_stack)
 
@@ -786,6 +786,9 @@ class SearchView(Gtk.Box):
             self._known_paths.add(str(entry.path))
         self._update_send_btn()
         self._update_visible_stack()
+        # Откладываем до следующего layout-тика — GridView ещё не успел
+        # пересчитать виртуальный диапазон, иначе set_value(0) ничего не даст.
+        GLib.idle_add(self.scroll_to_top)
 
     def _start_rescan(self, folders: list[Path] | None = None) -> None:
         if self._rescan_running:
@@ -859,3 +862,15 @@ class SearchView(Gtk.Box):
 
     def selected_paths(self) -> list[str]:
         return [str(p) for p in self._selected_paths()]
+
+    def scroll_to_top(self) -> None:
+        """Сбросить вертикальный скролл в grid и list скроллерах в самый верх.
+
+        Зовётся при переключении на вкладку и после полной перезаливки
+        Gio.ListStore: SortListModel сортирует элементы в произвольной точке,
+        и GTK-скроллер может остаться там, где зафиксировал последний layout.
+        """
+        for scroller in (self._grid_scroller, self._list_scroller):
+            vadj = scroller.get_vadjustment()
+            if vadj is not None:
+                vadj.set_value(vadj.get_lower())
