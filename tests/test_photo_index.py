@@ -140,6 +140,23 @@ def test_search_filters_by_folder(index, tmp_path, make_jpeg):
     assert [p.name for p in only_f1] == ["a.jpg"]
 
 
+def test_on_entry_fires_per_added_photo(index, tmp_path, make_jpeg):
+    folder = tmp_path / "shoot"
+    folder.mkdir()
+    make_jpeg(str(folder / "a.jpg"))
+    make_jpeg(str(folder / "b.jpg"))
+    make_jpeg(str(folder / "c.jpg"))
+    index.add_folder(folder)
+    seen: list[str] = []
+    index.rescan(on_entry=lambda e: seen.append(e.name))
+    assert sorted(seen) == ["a.jpg", "b.jpg", "c.jpg"]
+
+    # Повторный rescan без изменений — коллбек не дёргается
+    seen.clear()
+    index.rescan(on_entry=lambda e: seen.append(e.name))
+    assert seen == []
+
+
 def test_remove_folder_drops_its_photos(index, tmp_path, make_jpeg):
     folder = tmp_path / "shoot"
     folder.mkdir()

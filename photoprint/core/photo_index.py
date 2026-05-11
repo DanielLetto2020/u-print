@@ -100,6 +100,7 @@ class ScanProgress:
 
 
 ProgressCallback = Callable[[ScanProgress], None]
+EntryCallback = Callable[[PhotoEntry], None]
 
 
 class PhotoIndex:
@@ -161,6 +162,7 @@ class PhotoIndex:
         self,
         folders: Iterable[Path] | None = None,
         progress: ProgressCallback | None = None,
+        on_entry: EntryCallback | None = None,
     ) -> ScanProgress:
         """Пересканировать выбранные (или все известные) папки.
 
@@ -174,6 +176,9 @@ class PhotoIndex:
             folders: какие папки сканировать. ``None`` — все известные.
             progress: коллбек, дёргается после каждой обработанной папки
                 и периодически внутри неё (раз в ~50 файлов).
+            on_entry: коллбек, дёргается после каждой добавленной/обновлённой
+                записи с готовым :class:`PhotoEntry`. UI пользуется этим, чтобы
+                показывать фото по мере индексации, не дожидаясь конца прохода.
 
         Returns:
             Сводный :class:`ScanProgress` после прохода.
@@ -195,12 +200,19 @@ class PhotoIndex:
             for processed, (fp, st) in enumerate(on_disk.items(), start=1):
                 size, mtime = st
                 old = existing.pop(fp, None)
+                changed = False
                 if old is None and self._upsert(fp, folder, size, mtime):
                     new += 1
+                    changed = True
                 elif old is not None and old != (size, mtime) and self._upsert(
                     fp, folder, size, mtime
                 ):
                     upd += 1
+                    changed = True
+                if changed and on_entry is not None:
+                    entry = self._fetch_entry(fp)
+                    if entry is not None:
+                        on_entry(entry)
                 if progress and processed % 50 == 0:
                     progress(
                         ScanProgress(processed, total, folder, new, upd, 0)
@@ -228,6 +240,13 @@ class PhotoIndex:
             agg_upd,
             agg_rem,
         )
+
+    def _fetch_entry(self, path: Path) -> PhotoEntry | None:
+        """Считать одну запись из БД и собрать :class:`PhotoEntry`."""
+        row = self._conn.execute(
+            "SELECT * FROM photos WHERE path = ?", (str(path),)
+        ).fetchone()
+        return PhotoEntry.from_row(row) if row else None
 
     def _existing_in_folder(self, folder: Path) -> dict[Path, tuple[int, int]]:
         rows = self._conn.execute(
