@@ -103,7 +103,8 @@ class MainWindow(Adw.ApplicationWindow):
         right_paned.set_resize_start_child(True)
         right_paned.set_shrink_start_child(False)
         right_paned.set_shrink_end_child(False)
-        right_paned.set_position(800)
+        # preview слева занимает то, что осталось от окна 1280 — sidebar 380
+        right_paned.set_position(900)
 
         main_paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         photo_panel = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

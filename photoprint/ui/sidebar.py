@@ -80,14 +80,17 @@ class SettingsSidebar(Gtk.Box):
 
     def __init__(self) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
-        self.set_size_request(320, -1)
-        self._suppress = False  # set to True while syncing UI from params programmatically
+        # 360 — минимум, чтобы локализованные подписи (например, русские)
+        # в Adw.ComboRow помещались без переноса. Реальную ширину пользователь
+        # подбирает через Gtk.Paned-сплиттер в главном окне.
+        self.set_size_request(360, -1)
+        self._suppress = False  # True пока программно синхронизируем UI из params
 
         scroller = Gtk.ScrolledWindow()
         scroller.set_vexpand(True)
         clamp = Adw.Clamp()
-        clamp.set_maximum_size(360)
-        clamp.set_tightening_threshold(320)
+        clamp.set_maximum_size(520)
+        clamp.set_tightening_threshold(360)
 
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         page.set_margin_top(12)

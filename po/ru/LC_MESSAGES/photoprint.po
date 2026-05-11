@@ -21,7 +21,7 @@ msgid "Clear"
 msgstr "Очистить"
 
 msgid "Drag photos here, or click “Add photos…”"
-msgstr "Перетащите фото сюда или нажмите «Добавить фото…»"
+msgstr "Перетащите фото или нажмите «Добавить…»"
 
 msgid "Print…"
 msgstr "Печать…"
@@ -54,10 +54,10 @@ msgid "Fill order"
 msgstr "Порядок"
 
 msgid "Auto-rotate to fit"
-msgstr "Авто-поворот под ячейку"
+msgstr "Авто-поворот"
 
 msgid "Turn photos 90° when it improves cell coverage"
-msgstr "Поворачивать на 90°, чтобы лучше заполнить ячейку"
+msgstr "Повернёт фото на 90°, если так лучше впишется"
 
 msgid "Spacing (mm)"
 msgstr "Отступы (мм)"
@@ -183,10 +183,10 @@ msgid "16 (4×4)"
 msgstr "16 (4×4)"
 
 msgid "Left→right, top→bottom"
-msgstr "Слева направо, сверху вниз"
+msgstr "Слева→вправо, сверху→вниз"
 
 msgid "Top→bottom, left→right"
-msgstr "Сверху вниз, слева направо"
+msgstr "Сверху→вниз, слева→вправо"
 
 msgid "Margin: top"
 msgstr "Поле: сверху"
@@ -201,7 +201,7 @@ msgid "Margin: left"
 msgstr "Поле: слева"
 
 msgid "Gutter between cells"
-msgstr "Зазор между ячейками"
+msgstr "Зазор ячеек"
 
 msgid "Width (pt)"
 msgstr "Толщина (пт)"
@@ -249,10 +249,10 @@ msgid "Save PDF…"
 msgstr "Сохранить PDF…"
 
 msgid "Save layout as PDF (Ctrl+S)"
-msgstr "Сохранить раскладку как PDF (Ctrl+S)"
+msgstr "Сохранить как PDF (Ctrl+S)"
 
 msgid "Save layout as PDF"
-msgstr "Сохранить раскладку как PDF"
+msgstr "Сохранить как PDF"
 
 msgid "Print (Ctrl+P)"
 msgstr "Печать (Ctrl+P)"
