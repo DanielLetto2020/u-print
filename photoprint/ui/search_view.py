@@ -163,6 +163,45 @@ class SearchView(Gtk.Box):
         self._progress.set_margin_end(8)
         self.append(self._progress)
 
+        # -- Tray выбранных фото -------------------------------------------
+        self._tray_revealer = Gtk.Revealer()
+        self._tray_revealer.set_transition_type(
+            Gtk.RevealerTransitionType.SLIDE_DOWN
+        )
+        tray_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        tray_row.set_margin_top(4)
+        tray_row.set_margin_bottom(4)
+        tray_row.set_margin_start(8)
+        tray_row.set_margin_end(8)
+        tray_row.add_css_class("toolbar")
+
+        self._tray_label = Gtk.Label()
+        self._tray_label.add_css_class("heading")
+        self._tray_label.set_valign(Gtk.Align.CENTER)
+        tray_row.append(self._tray_label)
+
+        tray_scroller = Gtk.ScrolledWindow()
+        tray_scroller.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        tray_scroller.set_min_content_height(80)
+        tray_scroller.set_max_content_height(80)
+        tray_scroller.set_hexpand(True)
+        self._tray_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        self._tray_box.set_margin_start(4)
+        self._tray_box.set_margin_end(4)
+        tray_scroller.set_child(self._tray_box)
+        tray_row.append(tray_scroller)
+
+        tray_clear = Gtk.Button.new_from_icon_name("edit-clear-symbolic")
+        tray_clear.set_tooltip_text(_("Clear selection"))
+        tray_clear.set_valign(Gtk.Align.CENTER)
+        tray_clear.add_css_class("flat")
+        tray_clear.connect("clicked", lambda *_a: self._selection.unselect_all())
+        tray_row.append(tray_clear)
+
+        self._tray_revealer.set_child(tray_row)
+        self._tray_revealer.set_reveal_child(False)
+        self.append(self._tray_revealer)
+
         # -- Контент --------------------------------------------------------
         self._content_stack = Gtk.Stack()
         self._content_stack.set_vexpand(True)
@@ -266,6 +305,7 @@ class SearchView(Gtk.Box):
         box._pic = pic        # type: ignore[attr-defined]
         box._label = label    # type: ignore[attr-defined]
         box._current = None   # type: ignore[attr-defined]
+        self._install_toggle_gesture(box, list_item)
         list_item.set_child(box)
 
     def _grid_bind(self, _factory, list_item: Gtk.ListItem) -> None:
@@ -286,6 +326,34 @@ class SearchView(Gtk.Box):
             return  # виджет уже забиндили на другое фото — пропускаем
         if texture is not None:
             box._pic.set_paintable(texture)  # type: ignore[attr-defined]
+
+    def _install_toggle_gesture(self, widget: Gtk.Widget, list_item: Gtk.ListItem) -> None:
+        """Перехватить левый клик и сделать его toggle-выделением.
+
+        По умолчанию GridView/ColumnView при клике без модификаторов делают
+        «выбрать только этот», что мешает копить большие подборки. Capture-фаза
+        ловит клик до встроенной обработки, мы переключаем элемент через
+        Gtk.MultiSelection.select_item(..., unselect_rest=False), помечаем
+        gesture-sequence как CLAIMED, и встроенный обработчик не срабатывает.
+        """
+        gesture = Gtk.GestureClick.new()
+        gesture.set_button(1)  # только ЛКМ
+        gesture.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+
+        def on_pressed(g, n_press, _x, _y):
+            if n_press != 1:
+                return
+            pos = list_item.get_position()
+            if pos == Gtk.INVALID_LIST_POSITION:
+                return
+            if self._selection.is_selected(pos):
+                self._selection.unselect_item(pos)
+            else:
+                self._selection.select_item(pos, False)
+            g.set_state(Gtk.EventSequenceState.CLAIMED)
+
+        gesture.connect("pressed", on_pressed)
+        widget.add_controller(gesture)
 
     def _build_columns(self) -> None:
         """Создать все колонки ColumnView. Видимостью каждой управляет попавер."""
@@ -385,12 +453,17 @@ class SearchView(Gtk.Box):
     def _text_factory(self, getter) -> Gtk.SignalListItemFactory:
         """Универсальная фабрика «один Gtk.Label со строкой по getter(entry)»."""
         factory = Gtk.SignalListItemFactory()
-        factory.connect("setup", lambda _f, li: li.set_child(self._make_label()))
 
-        def bind(_f, li):
-            li.get_child().set_text(getter(li.get_item().entry))
+        def setup(_f, li):
+            label = self._make_label()
+            self._install_toggle_gesture(label, li)
+            li.set_child(label)
 
-        factory.connect("bind", bind)
+        factory.connect("setup", setup)
+        factory.connect(
+            "bind",
+            lambda _f, li: li.get_child().set_text(getter(li.get_item().entry)),
+        )
         return factory
 
     @staticmethod
@@ -454,6 +527,7 @@ class SearchView(Gtk.Box):
         pic.set_margin_start(4)
         pic.set_margin_end(4)
         pic._current = None  # type: ignore[attr-defined]
+        self._install_toggle_gesture(pic, list_item)
         list_item.set_child(pic)
 
     def _thumb_cell_bind(self, _factory, list_item: Gtk.ListItem) -> None:
@@ -477,7 +551,76 @@ class SearchView(Gtk.Box):
         return query in item.entry.name.lower()
 
     def _on_selection_changed(self, *_args) -> None:
+        self._rebuild_tray()
         self._update_send_btn()
+
+    # -- Tray --------------------------------------------------------------
+
+    def _rebuild_tray(self) -> None:
+        """Пересобрать горизонтальную полосу выбранных фото."""
+        paths = self._selected_paths()
+        # Скрываем revealer когда пусто
+        self._tray_revealer.set_reveal_child(bool(paths))
+        # Чистим
+        child = self._tray_box.get_first_child()
+        while child is not None:
+            nxt = child.get_next_sibling()
+            self._tray_box.remove(child)
+            child = nxt
+        # Перезаполняем (ограничиваем 200 миниатюрами, чтобы не плодить виджеты)
+        for path in paths[:200]:
+            self._tray_box.append(self._make_tray_tile(path))
+        if len(paths) > 200:
+            more = Gtk.Label(label=_("+{n} more").format(n=len(paths) - 200))
+            more.add_css_class("dim-label")
+            more.set_valign(Gtk.Align.CENTER)
+            self._tray_box.append(more)
+        self._tray_label.set_text(_("Selected: {n}").format(n=len(paths)))
+
+    def _make_tray_tile(self, path: Path) -> Gtk.Widget:
+        """Маленькая плитка с миниатюрой и кнопкой ×."""
+        overlay = Gtk.Overlay()
+        overlay.set_size_request(72, 72)
+        overlay.add_css_class("card")
+        pic = Gtk.Picture()
+        pic.set_size_request(72, 72)
+        pic.set_can_shrink(True)
+        pic.set_content_fit(Gtk.ContentFit.COVER)
+        overlay.set_child(pic)
+
+        close_btn = Gtk.Button.new_from_icon_name("window-close-symbolic")
+        close_btn.add_css_class("circular")
+        close_btn.add_css_class("osd")
+        close_btn.set_halign(Gtk.Align.END)
+        close_btn.set_valign(Gtk.Align.START)
+        close_btn.set_margin_top(2)
+        close_btn.set_margin_end(2)
+        close_btn.set_tooltip_text(_("Remove from selection"))
+        close_btn.connect("clicked", lambda *_a, _p=path: self._deselect_path(_p))
+        overlay.add_overlay(close_btn)
+
+        # Клик по самой миниатюре — тоже снимает (как и в основной сетке).
+        gesture = Gtk.GestureClick.new()
+        gesture.set_button(1)
+        gesture.connect(
+            "pressed", lambda *_a, _p=path: self._deselect_path(_p)
+        )
+        overlay.add_controller(gesture)
+
+        def apply(tex, _pic=pic):
+            if tex is not None:
+                _pic.set_paintable(tex)
+
+        self._loader.get(path, 72, apply)
+        return overlay
+
+    def _deselect_path(self, path: Path) -> None:
+        """Найти позицию по пути и снять выделение."""
+        for i in range(self._sort_model.get_n_items()):
+            item: PhotoEntryItem = self._sort_model.get_item(i)
+            if item is not None and item.entry.path == path:
+                self._selection.unselect_item(i)
+                return
 
     def _select_all(self) -> None:
         self._selection.select_all()
