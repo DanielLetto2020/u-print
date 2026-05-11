@@ -32,18 +32,19 @@ photoprint/
 │   ├── layout.py             # планировщик: фото + params → LayoutPlan (мм)
 │   ├── renderer.py           # LayoutPlan + reportlab → PDF
 │   ├── image_loader.py       # PIL + EXIF + HEIC + LRU миниатюр
-│   ├── photo_index.py        # SQLite-индекс отслеживаемых папок
+│   ├── photo_index.py        # SQLite-индекс + SHA-256 поиск дубликатов
 │   ├── printer.py            # обёртка над pycups
 │   └── settings.py           # JSON-настройки и пресеты
 ├── ui/                       # GTK4/Adw виджеты
-│   ├── window.py             # MainWindow + Adw.ViewStack
-│   ├── search_view.py        # вкладка Search (GridView/ColumnView)
+│   ├── window.py             # MainWindow + Adw.ViewStack (Search по умолчанию)
+│   ├── search_view.py        # Search: Grid + List + Duplicates + tray
 │   ├── photo_list.py         # колонка фото в Print
 │   ├── sidebar.py            # настройки раскладки
-│   ├── preview.py            # pypdfium2 → Gdk.Texture
+│   ├── preview.py            # pypdfium2 → Gdk.Texture + «print this page»
 │   ├── print_dialog.py       # CUPS-диалог
-│   ├── photo_item_model.py   # GObject-обёртка для Gio.ListStore
-│   └── thumbnail_loader.py   # ThreadPoolExecutor + LRU кеш текстур
+│   ├── photo_item_model.py   # PhotoEntryItem + DuplicateGroupItem (GObject)
+│   ├── thumbnail_loader.py   # ThreadPoolExecutor + LRU кеш текстур
+│   └── file_manager.py       # «Открыть в проводнике» через D-Bus
 ├── i18n.py                   # gettext bootstrap, DEFAULT_LANGUAGE = "en"
 ├── main.py                   # Adw.Application
 └── __main__.py               # python -m photoprint
@@ -51,7 +52,7 @@ po/
 ├── photoprint.pot            # шаблон
 ├── ru/LC_MESSAGES/*.po       # русский каталог (en — identity)
 └── build_mo.py               # pure-Python .po → .mo (msgfmt не нужен)
-tests/                        # pytest, 31 тест на core
+tests/                        # pytest, 35 тестов на core
 data/                         # .desktop, иконка, AppStream
 packaging/                    # install-deb.sh, Flatpak-манифест
 ```
@@ -134,9 +135,32 @@ install -m 644 po/ru/LC_MESSAGES/photoprint.mo \
 ### SQLite + потоки
 
 `PhotoIndex` открывает соединение с `check_same_thread=False`.
-Сканирование (`rescan`) идёт в `threading.Thread`, UI делает `search()`
-из main-треда. **Одновременных писателей нет** — кнопка Rescan
-блокируется на время прохода.
+Сканирование (`rescan`) и хеширование (`compute_missing_hashes`) идут в
+`threading.Thread`, UI делает `search()` / `find_duplicates()` из
+main-треда. **Одновременных писателей нет** — кнопки Rescan и
+Duplicates блокируются на время прохода.
+
+### Миграция схемы (v1 → v2)
+
+`SCHEMA_VERSION = 2`. На свежей БД `CREATE TABLE` ставит колонку
+`content_hash` сразу. На старых (v1) — ленивая `ALTER TABLE ADD COLUMN
+content_hash TEXT` в `__init__`, обёрнутая в `try/except OperationalError`
+для идемпотентности. Индексы по `size` и `content_hash` создаются
+**после** ALTER, а НЕ в `_SCHEMA_SQL`, иначе на v1 `CREATE INDEX` ссылался
+бы на ещё не существующую колонку и падал. Если будешь добавлять новые
+колонки — пользуйся тем же паттерном.
+
+### Поиск дубликатов
+
+1. `compute_missing_hashes` — SHA-256 (потоково, чанками по 64 КБ)
+   ТОЛЬКО для файлов с «соседом по размеру» (`size IN (SELECT size
+   GROUP BY HAVING COUNT > 1)`). Одиночки по байтам дубликатами быть не
+   могут, поэтому экономим IO.
+2. `find_duplicates` — `GROUP BY content_hash HAVING COUNT > 1`,
+   возвращает список списков `PhotoEntry`, отсортированных по
+   количеству копий по убыванию.
+3. В `_upsert` для новых/изменённых файлов `content_hash` сбрасывается в
+   NULL — пересчёт при следующем заходе на вкладку Duplicates.
 
 ### Инкрементальный показ при scan
 
@@ -154,6 +178,23 @@ install -m 644 po/ru/LC_MESSAGES/photoprint.mo \
 сохраняется при переключении grid/list, сортировка (по умолчанию
 `mtime DESC`) тоже одна. Виджеты создаются только для видимых ячеек
 через `Gtk.SignalListItemFactory`.
+
+У вкладки Duplicates **своя** модель — отдельный `Gio.ListStore` из
+`DuplicateGroupItem` с `Gtk.NoSelection` (одиночные клики раскрывают
+детальную панель, а не выделяют). Поэтому переключение в Duplicates не
+сбрасывает выделение, накопленное в Grid/List.
+
+### Скролл-в-верх
+
+`SearchView.scroll_to_top()` сбрасывает `vadjustment` обоих скроллеров
+(`_grid_scroller`, `_list_scroller`) в начало. Зовётся через
+`GLib.idle_add` (а не сразу) в двух случаях:
+1. `_reload_from_index()` — после полной перезаливки `Gio.ListStore`;
+2. `MainWindow._on_view_changed` — когда юзер кликнул на вкладку Search.
+
+Без `idle_add` `set_value(0)` отыгрывает до layout-фазы и «откатывается»
+обратно — GridView пересчитывает виртуальный диапазон только после
+обработки изменений модели.
 
 ### Toggle-клик в GridView/ColumnView
 
@@ -185,7 +226,17 @@ LRU-кешем на 600 текстур. UI-виджеты в `bind` запоми
 `PreviewWidget` эмитит сигнал `print-page-requested(int)` с индексом.
 MainWindow собирает урезанный `LayoutPlan(params=..., pages=(одна,))`
 и шлёт через общий `_open_print_dialog(plan)`. `Print…` в шапке шлёт
-весь план.
+весь план. Текущий «улетающий в CUPS» план хранится в
+`MainWindow._plan_to_print` и читается из `_handle_print_result`.
+
+### «Открыть в проводнике»
+
+`photoprint.ui.file_manager.open_in_file_manager(path)` сначала пробует
+D-Bus `org.freedesktop.FileManager1.ShowItems` — Nautilus, Nemo, Caja и
+прочие GTK-проводники подсветят файл в открывшейся папке. При неудаче
+(нет шины, файл-менеджер не подписан) — фолбэк на `xdg-open` родительской
+папки. URI обязательно через `Path.as_uri()`, иначе пробелы и юникод
+ломают вызов.
 
 ## Чего НЕ делать
 
@@ -195,6 +246,11 @@ MainWindow собирает урезанный `LayoutPlan(params=..., pages=(о
   `_current_path` и проверку.
 - НЕ добавлять GUI-импорты в `core/`.
 - НЕ использовать `lambda *_:` (шадовит `_` из i18n).
+- НЕ добавлять `CREATE INDEX` по новой колонке в `_SCHEMA_SQL` без
+  условия — на старых БД упадёт. Создавай индекс отдельным выражением
+  ПОСЛЕ `ALTER TABLE ADD COLUMN`.
+- НЕ хешировать все файлы подряд при поиске дубликатов — выбирай только
+  size-коллизии, иначе на больших библиотеках можно ждать минутами.
 - НЕ создавать `master`, `develop` и т.д. — только feature-branches от
   `main`, потом PR.
 - НЕ коммитить `idea.txt`, `.venv/`, `*.egg-info/`, `__pycache__/`
@@ -206,10 +262,10 @@ MainWindow собирает урезанный `LayoutPlan(params=..., pages=(о
 
 - `tests/test_layout.py` — 15 тестов планировщика.
 - `tests/test_renderer.py` — 5 тестов рендерера.
-- `tests/test_photo_index.py` — 10 тестов индекса.
+- `tests/test_photo_index.py` — 14 тестов индекса (включая дубликаты).
 - `tests/test_e2e.py` — 1 end-to-end (план + рендер реального JPEG).
 
-Итого 31. Если меняешь поведение — добавь тест.
+Итого 35. Если меняешь поведение — добавь тест.
 
 ## Когда что-то изменено в UI
 
