@@ -131,8 +131,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._view_stack.add_titled_with_icon(
             main_paned, "print", _("Print"), "printer-symbolic"
         )
-        # Стартуем на вкладке Print — то, что собирали раньше.
-        self._view_stack.set_visible_child_name("print")
+        # Стартуем на вкладке Search — обычный сценарий «найти фото и
+        # отправить на печать», поэтому первая видимая вкладка — поиск.
+        self._view_stack.set_visible_child_name("search")
         self._view_stack.connect("notify::visible-child-name", self._on_view_changed)
 
         switcher = Adw.ViewSwitcher()
