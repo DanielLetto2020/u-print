@@ -54,8 +54,8 @@ CREATE TABLE IF NOT EXISTS photos (
 CREATE INDEX IF NOT EXISTS idx_photos_folder ON photos(folder);
 CREATE INDEX IF NOT EXISTS idx_photos_name ON photos(name);
 CREATE INDEX IF NOT EXISTS idx_photos_exif ON photos(exif_iso);
-CREATE INDEX IF NOT EXISTS idx_photos_size ON photos(size);
-CREATE INDEX IF NOT EXISTS idx_photos_hash ON photos(content_hash);
+-- Индексы по size и content_hash создаются в __init__ после ALTER, чтобы
+-- на схеме v1 (где content_hash ещё нет) не падать на CREATE INDEX.
 """
 
 #: Чанк для потокового SHA-256 — 64 КБ. Хватает, не съедает память даже на DSLR-кадрах.

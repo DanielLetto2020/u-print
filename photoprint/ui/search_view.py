@@ -32,7 +32,8 @@ from gi.repository import Adw, Gio, GLib, GObject, Gtk  # noqa: E402
 
 from photoprint.core.photo_index import PhotoEntry, PhotoIndex, ScanProgress  # noqa: E402
 from photoprint.i18n import gettext as _  # noqa: E402
-from photoprint.ui.photo_item_model import PhotoEntryItem  # noqa: E402
+from photoprint.ui.file_manager import open_in_file_manager  # noqa: E402
+from photoprint.ui.photo_item_model import DuplicateGroupItem, PhotoEntryItem  # noqa: E402
 from photoprint.ui.thumbnail_loader import get_default as get_thumbnail_loader  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -101,6 +102,10 @@ class SearchView(Gtk.Box):
         self._batch_lock = threading.Lock()
         self._batch_timer_id: int | None = None
 
+        # Дубликаты: отдельная модель, своя GridView, флаг занятости.
+        self._duplicates_store = Gio.ListStore.new(DuplicateGroupItem)
+        self._duplicates_running = False
+
         # -- Верхняя панель ------------------------------------------------
         toolbar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         toolbar.set_margin_top(8)
@@ -141,8 +146,14 @@ class SearchView(Gtk.Box):
         self._list_btn.set_tooltip_text(_("List view"))
         self._list_btn.set_group(self._grid_btn)
         self._list_btn.connect("toggled", self._on_view_toggle)
+        self._dup_btn = Gtk.ToggleButton.new()
+        self._dup_btn.set_icon_name("edit-copy-symbolic")
+        self._dup_btn.set_tooltip_text(_("Find duplicates"))
+        self._dup_btn.set_group(self._grid_btn)
+        self._dup_btn.connect("toggled", self._on_view_toggle)
         view_box.append(self._grid_btn)
         view_box.append(self._list_btn)
+        view_box.append(self._dup_btn)
         toolbar.append(view_box)
 
         # Меню видимости колонок таблицы — доступно только в list-режиме.
@@ -260,6 +271,11 @@ class SearchView(Gtk.Box):
         self._list_scroller.set_child(self._columnview)
         self._list_scroller.set_vexpand(True)
         self._content_stack.add_named(self._list_scroller, "list")
+
+        # Страничка «Duplicates» — вложенный стек с прогрессом, пустым
+        # результатом и сеткой групп.
+        self._duplicates_page = self._build_duplicates_page()
+        self._content_stack.add_named(self._duplicates_page, "duplicates")
 
         self.append(self._content_stack)
 
@@ -697,16 +713,263 @@ class SearchView(Gtk.Box):
 
     # -- View toggle ------------------------------------------------------
 
+    # -- Duplicates view ---------------------------------------------------
+
+    def _build_duplicates_page(self) -> Gtk.Widget:
+        """Корневой виджет страницы «Duplicates» — содержит вложенный Stack."""
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        outer.set_hexpand(True)
+        outer.set_vexpand(True)
+
+        # Детальная панель сверху: список путей выбранной группы дубликатов.
+        self._dup_detail_revealer = Gtk.Revealer()
+        self._dup_detail_revealer.set_transition_type(
+            Gtk.RevealerTransitionType.SLIDE_DOWN
+        )
+        self._dup_detail_revealer.set_reveal_child(False)
+
+        detail_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        detail_card.set_margin_top(8)
+        detail_card.set_margin_bottom(8)
+        detail_card.set_margin_start(8)
+        detail_card.set_margin_end(8)
+        detail_card.add_css_class("card")
+
+        detail_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        detail_header.set_margin_top(8)
+        detail_header.set_margin_start(12)
+        detail_header.set_margin_end(8)
+        self._dup_detail_title = Gtk.Label()
+        self._dup_detail_title.add_css_class("heading")
+        self._dup_detail_title.set_halign(Gtk.Align.START)
+        self._dup_detail_title.set_hexpand(True)
+        detail_header.append(self._dup_detail_title)
+        close_btn = Gtk.Button.new_from_icon_name("window-close-symbolic")
+        close_btn.add_css_class("flat")
+        close_btn.set_tooltip_text(_("Close details"))
+        close_btn.connect(
+            "clicked", lambda *_a: self._dup_detail_revealer.set_reveal_child(False)
+        )
+        detail_header.append(close_btn)
+        detail_card.append(detail_header)
+
+        self._dup_detail_list = Gtk.ListBox()
+        self._dup_detail_list.add_css_class("boxed-list")
+        self._dup_detail_list.set_selection_mode(Gtk.SelectionMode.NONE)
+        self._dup_detail_list.set_margin_start(12)
+        self._dup_detail_list.set_margin_end(12)
+        self._dup_detail_list.set_margin_bottom(12)
+        detail_card.append(self._dup_detail_list)
+
+        self._dup_detail_revealer.set_child(detail_card)
+        outer.append(self._dup_detail_revealer)
+
+        # Вложенный стек: пустое состояние / прогресс / нашли группы.
+        self._dup_stack = Gtk.Stack()
+        self._dup_stack.set_vexpand(True)
+
+        empty = Adw.StatusPage()
+        empty.set_icon_name("edit-copy-symbolic")
+        empty.set_title(_("No duplicates found"))
+        empty.set_description(
+            _("Every indexed photo is unique by SHA-256.")
+        )
+        self._dup_stack.add_named(empty, "empty")
+
+        progress_page = Adw.StatusPage()
+        progress_page.set_icon_name("emblem-synchronizing-symbolic")
+        progress_page.set_title(_("Looking for duplicates"))
+        self._dup_progress_label = Gtk.Label()
+        self._dup_progress_label.add_css_class("dim-label")
+        progress_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        progress_box.set_halign(Gtk.Align.CENTER)
+        self._dup_progress_bar = Gtk.ProgressBar()
+        self._dup_progress_bar.set_size_request(280, -1)
+        progress_box.append(self._dup_progress_bar)
+        progress_box.append(self._dup_progress_label)
+        progress_page.set_child(progress_box)
+        self._dup_stack.add_named(progress_page, "progress")
+
+        # GridView со списком групп дубликатов.
+        factory = Gtk.SignalListItemFactory()
+        factory.connect("setup", self._dup_tile_setup)
+        factory.connect("bind", self._dup_tile_bind)
+        no_selection = Gtk.NoSelection.new(self._duplicates_store)
+        self._dup_gridview = Gtk.GridView.new(no_selection, factory)
+        self._dup_gridview.set_max_columns(20)
+        self._dup_gridview.set_min_columns(2)
+        self._dup_gridview.set_single_click_activate(True)
+        self._dup_gridview.connect("activate", self._on_duplicate_activated)
+        self._dup_scroller = Gtk.ScrolledWindow()
+        self._dup_scroller.set_child(self._dup_gridview)
+        self._dup_scroller.set_vexpand(True)
+        self._dup_stack.add_named(self._dup_scroller, "results")
+
+        outer.append(self._dup_stack)
+        return outer
+
+    def _dup_tile_setup(self, _factory, list_item: Gtk.ListItem) -> None:
+        """Создать карточку группы дубликатов: миниатюра + бейдж +N."""
+        overlay = Gtk.Overlay()
+        overlay.set_size_request(THUMB_SIZE + 12, THUMB_SIZE + 36)
+        overlay.add_css_class("card")
+        overlay.set_margin_top(2)
+        overlay.set_margin_bottom(2)
+        overlay.set_margin_start(2)
+        overlay.set_margin_end(2)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        pic = Gtk.Picture()
+        pic.set_size_request(THUMB_SIZE, THUMB_SIZE)
+        pic.set_can_shrink(True)
+        pic.set_content_fit(Gtk.ContentFit.CONTAIN)
+        pic.set_margin_top(6)
+        pic.set_margin_start(6)
+        pic.set_margin_end(6)
+        label = Gtk.Label()
+        label.set_ellipsize(3)
+        label.set_max_width_chars(18)
+        label.add_css_class("caption")
+        label.set_margin_bottom(4)
+        box.append(pic)
+        box.append(label)
+        overlay.set_child(box)
+
+        # Бейдж «+N» в правом-верхнем углу.
+        badge = Gtk.Label()
+        badge.add_css_class("osd")
+        badge.add_css_class("heading")
+        badge.set_margin_top(6)
+        badge.set_margin_end(6)
+        badge.set_halign(Gtk.Align.END)
+        badge.set_valign(Gtk.Align.START)
+        overlay.add_overlay(badge)
+
+        overlay._pic = pic        # type: ignore[attr-defined]
+        overlay._label = label    # type: ignore[attr-defined]
+        overlay._badge = badge    # type: ignore[attr-defined]
+        overlay._current = None   # type: ignore[attr-defined]
+        list_item.set_child(overlay)
+
+    def _dup_tile_bind(self, _factory, list_item: Gtk.ListItem) -> None:
+        overlay = list_item.get_child()
+        group: DuplicateGroupItem = list_item.get_item()
+        rep = group.representative
+        overlay._label.set_text(rep.name)        # type: ignore[attr-defined]
+        overlay._pic.set_paintable(None)         # type: ignore[attr-defined]
+        overlay._current = rep.path              # type: ignore[attr-defined]
+        # «+N» — лишние копии сверх оригинала.
+        extra = group.copies_count - 1
+        overlay._badge.set_text(f"+{extra}")     # type: ignore[attr-defined]
+        path = rep.path
+
+        def apply(tex, _o=overlay, _p=path):
+            if getattr(_o, "_current", None) != _p:
+                return
+            if tex is not None:
+                _o._pic.set_paintable(tex)       # type: ignore[attr-defined]
+
+        self._loader.get(path, THUMB_SIZE, apply)
+
+    def _on_duplicate_activated(self, _gridview, position: int) -> None:
+        """Открыть детальную панель с путями всех копий выбранной группы."""
+        item = self._duplicates_store.get_item(position)
+        if item is None:
+            return
+        # Заголовок: «N copies of filename.jpg»
+        self._dup_detail_title.set_text(
+            _("{n} copies of {name}").format(
+                n=item.copies_count, name=item.representative.name
+            )
+        )
+        # Очищаем и наполняем список путей.
+        child = self._dup_detail_list.get_first_child()
+        while child is not None:
+            nxt = child.get_next_sibling()
+            self._dup_detail_list.remove(child)
+            child = nxt
+        for i, entry in enumerate(item.entries):
+            row = Adw.ActionRow()
+            # Первая запись — «original», остальные — «copy N»
+            if i == 0:
+                row.set_title(_("Original"))
+            else:
+                row.set_title(_("Copy {n}").format(n=i))
+            row.set_subtitle(str(entry.path))
+            row.set_subtitle_lines(2)
+            open_btn = Gtk.Button.new_from_icon_name("folder-open-symbolic")
+            open_btn.add_css_class("flat")
+            open_btn.set_valign(Gtk.Align.CENTER)
+            open_btn.set_tooltip_text(_("Open in file manager"))
+            open_btn.connect(
+                "clicked", lambda _b, _p=entry.path: open_in_file_manager(_p)
+            )
+            row.add_suffix(open_btn)
+            self._dup_detail_list.append(row)
+        self._dup_detail_revealer.set_reveal_child(True)
+
+    def _enter_duplicates_mode(self) -> None:
+        """Кликнули на тогл Duplicates: запускаем хеширование и поиск."""
+        if self._duplicates_running:
+            return
+        if not self._index.folders():
+            return
+        self._duplicates_running = True
+        self._dup_stack.set_visible_child_name("progress")
+        self._dup_progress_bar.set_fraction(0)
+        self._dup_progress_label.set_text(_("Computing checksums…"))
+        # Закрываем детальную панель — данные старые.
+        self._dup_detail_revealer.set_reveal_child(False)
+
+        def on_progress(done: int, total: int) -> None:
+            fraction = (done / total) if total else 1.0
+            GLib.idle_add(self._dup_progress_bar.set_fraction, fraction)
+            GLib.idle_add(
+                self._dup_progress_label.set_text,
+                _("Hashing {done} of {total}").format(done=done, total=total),
+            )
+
+        def worker() -> None:
+            try:
+                self._index.compute_missing_hashes(progress=on_progress)
+                groups = self._index.find_duplicates()
+            except Exception:  # noqa: BLE001
+                logger.exception("Duplicate scan failed")
+                groups = []
+            GLib.idle_add(self._on_duplicates_done, groups)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_duplicates_done(self, groups: list[list[PhotoEntry]]) -> bool:
+        self._duplicates_running = False
+        # Перезаливаем модель.
+        self._duplicates_store.remove_all()
+        for entries in groups:
+            self._duplicates_store.append(DuplicateGroupItem(entries))
+        # Переключаем подвкладку: результаты или «пусто».
+        if groups:
+            self._dup_stack.set_visible_child_name("results")
+        else:
+            self._dup_stack.set_visible_child_name("empty")
+        return False
+
     def _on_view_toggle(self, button: Gtk.ToggleButton) -> None:
         if not button.get_active():
             return
         # Меню колонок имеет смысл только в режиме списка.
         self._cols_btn.set_sensitive(self._list_btn.get_active())
+        # Кнопка дубликатов запускает фоновое хеширование, остальные пересчёта
+        # не требуют.
+        if button is self._dup_btn:
+            self._enter_duplicates_mode()
         self._update_visible_stack()
 
     def _update_visible_stack(self) -> None:
         if not self._index.folders():
             self._content_stack.set_visible_child_name("no-folders")
+            return
+        if self._dup_btn.get_active():
+            self._content_stack.set_visible_child_name("duplicates")
             return
         if self._sort_model.get_n_items() == 0 and not self._rescan_running:
             self._content_stack.set_visible_child_name("no-results")

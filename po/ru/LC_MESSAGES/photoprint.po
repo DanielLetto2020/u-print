@@ -262,3 +262,36 @@ msgstr "Следующая страница"
 
 msgid "Print this page only"
 msgstr "Напечатать только эту страницу"
+
+msgid "Find duplicates"
+msgstr "Найти дубликаты"
+
+msgid "No duplicates found"
+msgstr "Дубликатов не найдено"
+
+msgid "Every indexed photo is unique by SHA-256."
+msgstr "Все проиндексированные фото уникальны по SHA-256."
+
+msgid "Looking for duplicates"
+msgstr "Ищу дубликаты"
+
+msgid "Computing checksums…"
+msgstr "Считаю контрольные суммы…"
+
+msgid "Hashing {done} of {total}"
+msgstr "Хеширование {done} из {total}"
+
+msgid "Close details"
+msgstr "Закрыть подробности"
+
+msgid "Open in file manager"
+msgstr "Открыть в проводнике"
+
+msgid "{n} copies of {name}"
+msgstr "Копий {n}: {name}"
+
+msgid "Original"
+msgstr "Оригинал"
+
+msgid "Copy {n}"
+msgstr "Копия {n}"
