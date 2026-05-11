@@ -113,7 +113,10 @@ class PhotoIndex:
     def __init__(self, db_path: Path | None = None) -> None:
         self.db_path = db_path or (config_dir() / DB_FILE)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self.db_path))
+        # check_same_thread=False: разрешаем дёргать из worker-треда (rescan)
+        # и main-треда (search). UI следит, чтобы одновременных писателей не
+        # было — кнопка rescan дизейблится на время прохода.
+        self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA_SQL)
         self._conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
