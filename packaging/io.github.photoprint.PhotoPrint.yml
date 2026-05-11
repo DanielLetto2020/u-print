@@ -1,0 +1,49 @@
+app-id: io.github.photoprint.PhotoPrint
+runtime: org.gnome.Platform
+runtime-version: '46'
+sdk: org.gnome.Sdk
+command: photoprint
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # CUPS over UNIX socket so we can list printers and submit jobs
+  - --socket=cups
+  # XDG portals for File dialogs
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --filesystem=xdg-pictures:ro
+  - --filesystem=xdg-documents
+modules:
+  # 1) Python runtime extras we depend on (Pillow, reportlab, pypdfium2,
+  #    pillow-heif, platformdirs, pycups). Easiest path: pip install with
+  #    a frozen requirements list. flatpak-builder needs a
+  #    flatpak-pip-generator output for a fully offline build; the simplest
+  #    portable invocation is shown below.
+  - name: python-deps
+    buildsystem: simple
+    build-commands:
+      - >-
+        pip3 install --prefix=${FLATPAK_DEST} --no-build-isolation
+        Pillow pillow-heif reportlab pypdfium2 platformdirs pycups
+
+  # 2) Our application code
+  - name: photoprint
+    buildsystem: simple
+    build-commands:
+      - pip3 install --prefix=${FLATPAK_DEST} --no-build-isolation .
+      - install -Dm644 data/desktop/io.github.photoprint.PhotoPrint.desktop
+                       ${FLATPAK_DEST}/share/applications/io.github.photoprint.PhotoPrint.desktop
+      - install -Dm644 data/icons/io.github.photoprint.PhotoPrint.svg
+                       ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/io.github.photoprint.PhotoPrint.svg
+      - install -Dm644 data/io.github.photoprint.PhotoPrint.metainfo.xml
+                       ${FLATPAK_DEST}/share/metainfo/io.github.photoprint.PhotoPrint.metainfo.xml
+      - python3 po/build_mo.py
+      - for L in po/*/LC_MESSAGES/photoprint.mo;
+        do
+          dest=${FLATPAK_DEST}/share/locale/$(basename $(dirname $(dirname $L)))/LC_MESSAGES/photoprint.mo;
+          install -Dm644 $L $dest;
+        done
+    sources:
+      - type: dir
+        path: ..

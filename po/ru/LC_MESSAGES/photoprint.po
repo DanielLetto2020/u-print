@@ -1,0 +1,276 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: photoprint 0.1.0\n"
+"PO-Revision-Date: 2026-05-11 00:00+0000\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "PhotoPrint"
+msgstr "PhotoPrint"
+
+msgid "Add photos…"
+msgstr "Добавить фото…"
+
+msgid "Remove selected"
+msgstr "Удалить выбранные"
+
+msgid "Clear"
+msgstr "Очистить"
+
+msgid "Drag photos here, or click “Add photos…”"
+msgstr "Перетащите фото сюда или нажмите «Добавить фото…»"
+
+msgid "Print…"
+msgstr "Печать…"
+
+msgid "Save PDF…"
+msgstr "Сохранить PDF…"
+
+msgid "Presets"
+msgstr "Пресеты"
+
+msgid "Paper"
+msgstr "Бумага"
+
+msgid "Size"
+msgstr "Размер"
+
+msgid "Orientation"
+msgstr "Ориентация"
+
+msgid "Layout"
+msgstr "Раскладка"
+
+msgid "Photos per page"
+msgstr "Фото на лист"
+
+msgid "Fit mode"
+msgstr "Заполнение"
+
+msgid "Fill order"
+msgstr "Порядок"
+
+msgid "Auto-rotate to fit"
+msgstr "Авто-поворот под ячейку"
+
+msgid "Turn photos 90° when it improves cell coverage"
+msgstr "Поворачивать на 90°, чтобы лучше заполнить ячейку"
+
+msgid "Spacing (mm)"
+msgstr "Отступы (мм)"
+
+msgid "Photo border"
+msgstr "Рамка фото"
+
+msgid "Caption"
+msgstr "Подпись"
+
+msgid "Show under photo"
+msgstr "Под фото показывать"
+
+msgid "Font size (pt)"
+msgstr "Размер шрифта (пт)"
+
+msgid "Auto"
+msgstr "Авто"
+
+msgid "Portrait"
+msgstr "Книжная"
+
+msgid "Landscape"
+msgstr "Альбомная"
+
+msgid "Fit (contain)"
+msgstr "Вписать"
+
+msgid "Fill (cover, crops)"
+msgstr "Заполнить (обрезает)"
+
+msgid "Stretch (distorts)"
+msgstr "Растянуть (искажает)"
+
+msgid "None"
+msgstr "Нет"
+
+msgid "File name"
+msgstr "Имя файла"
+
+msgid "EXIF date"
+msgstr "Дата EXIF"
+
+msgid "Print"
+msgstr "Печать"
+
+msgid "Cancel"
+msgstr "Отмена"
+
+msgid "Printer"
+msgstr "Принтер"
+
+msgid "Copies"
+msgstr "Копий"
+
+msgid "Color"
+msgstr "Цвет"
+
+msgid "Quality"
+msgstr "Качество"
+
+msgid "Restore previous session?"
+msgstr "Восстановить предыдущую сессию?"
+
+msgid "Save preset"
+msgstr "Сохранить пресет"
+
+msgid "Save"
+msgstr "Сохранить"
+
+msgid "Discard"
+msgstr "Отказаться"
+
+msgid "Restore"
+msgstr "Восстановить"
+
+msgid "Main menu"
+msgstr "Меню"
+
+msgid "Language"
+msgstr "Язык"
+
+msgid "Auto (system locale)"
+msgstr "Авто (системный)"
+
+msgid "Restart required"
+msgstr "Нужен перезапуск"
+
+msgid "Language set to {name}. Restart PhotoPrint to apply."
+msgstr "Язык изменён на {name}. Перезапустите PhotoPrint, чтобы применить."
+
+msgid "OK"
+msgstr "OK"
+
+msgid "1 (full page)"
+msgstr "1 (на весь лист)"
+
+msgid "2 (1×2)"
+msgstr "2 (1×2)"
+
+msgid "2 (2×1)"
+msgstr "2 (2×1)"
+
+msgid "4 (2×2)"
+msgstr "4 (2×2)"
+
+msgid "6 (2×3)"
+msgstr "6 (2×3)"
+
+msgid "6 (3×2)"
+msgstr "6 (3×2)"
+
+msgid "8 (2×4)"
+msgstr "8 (2×4)"
+
+msgid "8 (4×2)"
+msgstr "8 (4×2)"
+
+msgid "9 (3×3)"
+msgstr "9 (3×3)"
+
+msgid "16 (4×4)"
+msgstr "16 (4×4)"
+
+msgid "Left→right, top→bottom"
+msgstr "Слева направо, сверху вниз"
+
+msgid "Top→bottom, left→right"
+msgstr "Сверху вниз, слева направо"
+
+msgid "Margin: top"
+msgstr "Поле: сверху"
+
+msgid "Margin: right"
+msgstr "Поле: справа"
+
+msgid "Margin: bottom"
+msgstr "Поле: снизу"
+
+msgid "Margin: left"
+msgstr "Поле: слева"
+
+msgid "Gutter between cells"
+msgstr "Зазор между ячейками"
+
+msgid "Width (pt)"
+msgstr "Толщина (пт)"
+
+msgid "Border colour"
+msgstr "Цвет рамки"
+
+msgid "No printers found"
+msgstr "Принтеры не найдены"
+
+msgid "Colour"
+msgstr "Цветная"
+
+msgid "Mono (B/W)"
+msgstr "Ч/Б"
+
+msgid "Draft"
+msgstr "Черновое"
+
+msgid "Normal"
+msgstr "Обычное"
+
+msgid "Best"
+msgstr "Наилучшее"
+
+msgid "Apply preset"
+msgstr "Применить пресет"
+
+msgid "Save current as preset…"
+msgstr "Сохранить текущие как пресет…"
+
+msgid "Enter a name for this preset:"
+msgstr "Введите имя для пресета:"
+
+msgid "e.g. Passport 4×6"
+msgstr "например, «Паспорт 4×6»"
+
+msgid "Preset “{name}” saved"
+msgstr "Пресет «{name}» сохранён"
+
+msgid "Applied preset “{name}”"
+msgstr "Применён пресет «{name}»"
+
+msgid "Save PDF…"
+msgstr "Сохранить PDF…"
+
+msgid "Save layout as PDF (Ctrl+S)"
+msgstr "Сохранить раскладку как PDF (Ctrl+S)"
+
+msgid "Save layout as PDF"
+msgstr "Сохранить раскладку как PDF"
+
+msgid "Print (Ctrl+P)"
+msgstr "Печать (Ctrl+P)"
+
+msgid "Saved to {name}"
+msgstr "Сохранено в {name}"
+
+msgid "Submitted print job #{job_id}"
+msgstr "Задание #{job_id} отправлено на печать"
+
+msgid "Save failed"
+msgstr "Не удалось сохранить"
+
+msgid "Print failed"
+msgstr "Не удалось напечатать"
+
+msgid "You had {n} photo(s) loaded last time."
+msgstr "В прошлый раз было загружено {n} фото."
+
+msgid "Images"
+msgstr "Изображения"

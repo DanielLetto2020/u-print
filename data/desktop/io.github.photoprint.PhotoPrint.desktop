@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=PhotoPrint
+Name[ru]=PhotoPrint
+GenericName=Photo print layout
+GenericName[ru]=Печать фото
+Comment=Print multiple photos per page (N-up layouts)
+Comment[ru]=Печать нескольких фото на одном листе
+Exec=photoprint %F
+Icon=io.github.photoprint.PhotoPrint
+Categories=GTK;Graphics;Photography;Printing;
+MimeType=image/jpeg;image/png;image/tiff;image/webp;image/heic;image/heif;image/bmp;
+Keywords=photo;print;n-up;layout;cups;
+Terminal=false
+StartupNotify=true

@@ -1,0 +1,140 @@
+# PhotoPrint — translation template.
+# Copyright (C) 2026.
+# This file is distributed under the same MIT license as the photoprint package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: photoprint 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-11 00:00+0000\n"
+"PO-Revision-Date: 2026-05-11 00:00+0000\n"
+"Language-Team: LANGUAGE\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "PhotoPrint"
+msgstr ""
+
+msgid "Add photos…"
+msgstr ""
+
+msgid "Remove selected"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Drag photos here, or click “Add photos…”"
+msgstr ""
+
+msgid "Print…"
+msgstr ""
+
+msgid "Save PDF…"
+msgstr ""
+
+msgid "Presets"
+msgstr ""
+
+msgid "Paper"
+msgstr ""
+
+msgid "Size"
+msgstr ""
+
+msgid "Orientation"
+msgstr ""
+
+msgid "Layout"
+msgstr ""
+
+msgid "Photos per page"
+msgstr ""
+
+msgid "Fit mode"
+msgstr ""
+
+msgid "Fill order"
+msgstr ""
+
+msgid "Auto-rotate to fit"
+msgstr ""
+
+msgid "Turn photos 90° when it improves cell coverage"
+msgstr ""
+
+msgid "Spacing (mm)"
+msgstr ""
+
+msgid "Photo border"
+msgstr ""
+
+msgid "Caption"
+msgstr ""
+
+msgid "Show under photo"
+msgstr ""
+
+msgid "Font size (pt)"
+msgstr ""
+
+msgid "Auto"
+msgstr ""
+
+msgid "Portrait"
+msgstr ""
+
+msgid "Landscape"
+msgstr ""
+
+msgid "Fit (contain)"
+msgstr ""
+
+msgid "Fill (cover, crops)"
+msgstr ""
+
+msgid "Stretch (distorts)"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "File name"
+msgstr ""
+
+msgid "EXIF date"
+msgstr ""
+
+msgid "Print"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Printer"
+msgstr ""
+
+msgid "Copies"
+msgstr ""
+
+msgid "Color"
+msgstr ""
+
+msgid "Quality"
+msgstr ""
+
+msgid "Restore previous session?"
+msgstr ""
+
+msgid "Save preset"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Discard"
+msgstr ""
+
+msgid "Restore"
+msgstr ""
