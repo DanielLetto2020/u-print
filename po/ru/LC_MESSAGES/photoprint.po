@@ -295,3 +295,129 @@ msgstr "Оригинал"
 
 msgid "Copy {n}"
 msgstr "Копия {n}"
+
+msgid "AI Generate"
+msgstr "AI генерация"
+
+msgid "OpenRouter key required"
+msgstr "Нужен ключ OpenRouter"
+
+msgid "Enter your OpenRouter API key to load image-capable models. The key is stored locally in your settings."
+msgstr "Введите ключ OpenRouter API, чтобы подгрузить модели для генерации картинок. Ключ хранится локально в настройках."
+
+msgid "sk-or-v1-…"
+msgstr "sk-or-v1-…"
+
+msgid "Save and load models"
+msgstr "Сохранить и загрузить модели"
+
+msgid "Get a key at openrouter.ai/keys (free models are available)."
+msgstr "Получить ключ — openrouter.ai/keys (есть бесплатные модели)."
+
+msgid "Loading models…"
+msgstr "Загружаю модели…"
+
+msgid "Querying OpenRouter for image-capable models."
+msgstr "Запрашиваю каталог моделей с поддержкой картинок."
+
+msgid "Could not load models"
+msgstr "Не удалось загрузить модели"
+
+msgid "Retry"
+msgstr "Повторить"
+
+msgid "Change API key"
+msgstr "Поменять API-ключ"
+
+msgid "Model"
+msgstr "Модель"
+
+msgid "Output folder…"
+msgstr "Папка для сохранения…"
+
+msgid "Choose where generated images are saved"
+msgstr "Куда складывать сгенерированные картинки"
+
+msgid "New session"
+msgstr "Новая сессия"
+
+msgid "Rename session"
+msgstr "Переименовать сессию"
+
+msgid "Delete session"
+msgstr "Удалить сессию"
+
+msgid "Use previous image as reference"
+msgstr "Использовать прошлую картинку как референс"
+
+msgid "When checked, the latest image of this session is sent along with your prompt so the model edits it instead of starting from scratch."
+msgstr "Когда включено, последняя картинка этой сессии отправляется вместе с prompt-ом — модель отредактирует её, а не сгенерирует с нуля."
+
+msgid "Generate"
+msgstr "Сгенерировать"
+
+msgid "OpenRouter did not return any image-capable models for this key."
+msgstr "OpenRouter не вернул моделей с поддержкой картинок для этого ключа."
+
+msgid "Saves to: {path}"
+msgstr "Сохраняем в: {path}"
+
+msgid "Choose output folder for AI images"
+msgstr "Выберите папку для AI-картинок"
+
+msgid "{n} message"
+msgstr "{n} сообщение"
+
+msgid "{n} messages"
+msgstr "{n} сообщений"
+
+msgid "Session {n}"
+msgstr "Сессия {n}"
+
+msgid "Choose a new name:"
+msgstr "Выберите новое имя:"
+
+msgid "Rename"
+msgstr "Переименовать"
+
+msgid "Delete this session?"
+msgstr "Удалить эту сессию?"
+
+msgid "Generated image files on disk stay; only the chat history is removed."
+msgstr "Сгенерированные файлы на диске останутся; удалится только история переписки."
+
+msgid "Delete"
+msgstr "Удалить"
+
+msgid "No session"
+msgstr "Нет сессии"
+
+msgid "Click “New session” on the left to start."
+msgstr "Нажмите «Новая сессия» слева, чтобы начать."
+
+msgid "(model not set)"
+msgstr "(модель не задана)"
+
+msgid "Model: {model}"
+msgstr "Модель: {model}"
+
+msgid "Empty session — type a prompt below and press Generate."
+msgstr "Сессия пуста — введите prompt ниже и нажмите «Сгенерировать»."
+
+msgid "(empty prompt)"
+msgstr "(пустой prompt)"
+
+msgid "Type a prompt first."
+msgstr "Сначала введите prompt."
+
+msgid "Pick a model first."
+msgstr "Сначала выберите модель."
+
+msgid "Cannot save image: {err}"
+msgstr "Не удалось сохранить картинку: {err}"
+
+msgid "Generation failed"
+msgstr "Генерация не удалась"
+
+msgid "Unknown error"
+msgstr "Неизвестная ошибка"

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -59,6 +60,14 @@ class AppSettings:
     last_layout: dict[str, Any] = field(default_factory=dict)
     # UI language: "en" (default), "ru", or "auto" (follow system locale).
     language: str = "en"
+    # OpenRouter API key for the AI generate tab. Stored locally; never sent
+    # anywhere except api.openrouter.ai when the user explicitly generates.
+    openrouter_api_key: str = ""
+    # Папка для сгенерированных AI-картинок. По умолчанию пусто — UI
+    # подставит "<Pictures>/PhotoPrint AI" при первом использовании.
+    ai_output_dir: str = ""
+    # Последний выбранный image-generation model id (для восстановления).
+    last_ai_model: str = ""
 
 
 def load_settings() -> AppSettings:
@@ -76,14 +85,28 @@ def load_settings() -> AppSettings:
         last_dir=raw.get("last_dir", ""),
         last_layout=raw.get("last_layout", {}),
         language=raw.get("language", "en"),
+        openrouter_api_key=raw.get("openrouter_api_key", ""),
+        ai_output_dir=raw.get("ai_output_dir", ""),
+        last_ai_model=raw.get("last_ai_model", ""),
     )
 
 
 def save_settings(s: AppSettings) -> None:
-    """Write settings atomically to disk."""
+    """Write settings atomically to disk.
+
+    Файл получает права ``0600`` — в нём лежит ``openrouter_api_key``, а
+    дефолтный umask пускает чтение всем пользователям машины. Меняем
+    права на tmp ДО атомарного replace, чтобы окно «читаемо для всех»
+    физически не существовало.
+    """
     path = config_dir() / "settings.json"
     tmp = path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(asdict(s), indent=2, ensure_ascii=False), encoding="utf-8")
+    try:
+        os.chmod(tmp, 0o600)
+    except OSError as exc:
+        # На FAT/NTFS chmod не работает — это не повод не сохранять настройки.
+        logger.debug("chmod 0600 failed for %s: %s", tmp, exc)
     tmp.replace(path)
 
 
