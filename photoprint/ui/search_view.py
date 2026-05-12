@@ -1126,6 +1126,27 @@ class SearchView(Gtk.Box):
     def selected_paths(self) -> list[str]:
         return [str(p) for p in self._selected_paths()]
 
+    def register_external_folder(self, folder: Path) -> None:
+        """Зарегистрировать папку из «AI Generate» и переиндексировать её.
+
+        Идемпотентно: повторные вызовы по той же папке не добавят дубль
+        записи (``PhotoIndex.add_folder`` ловит IntegrityError), но всё равно
+        запустят инкрементальный rescan — чтобы новые сгенерированные файлы
+        моментально появились в Search.
+        """
+        folder = folder.resolve()
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            logger.warning("Cannot create AI output folder %s: %s", folder, exc)
+            return
+        try:
+            self._index.add_folder(folder)
+        except NotADirectoryError:
+            return
+        self._rebuild_folders_popover()
+        self._start_rescan([folder])
+
     def scroll_to_top(self) -> None:
         """Сбросить вертикальный скролл в grid и list скроллерах в самый верх.
 

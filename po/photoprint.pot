@@ -153,3 +153,129 @@ msgstr ""
 
 msgid "Print this page only"
 msgstr ""
+
+msgid "AI Generate"
+msgstr ""
+
+msgid "OpenRouter key required"
+msgstr ""
+
+msgid "Enter your OpenRouter API key to load image-capable models. The key is stored locally in your settings."
+msgstr ""
+
+msgid "sk-or-v1-…"
+msgstr ""
+
+msgid "Save and load models"
+msgstr ""
+
+msgid "Get a key at openrouter.ai/keys (free models are available)."
+msgstr ""
+
+msgid "Loading models…"
+msgstr ""
+
+msgid "Querying OpenRouter for image-capable models."
+msgstr ""
+
+msgid "Could not load models"
+msgstr ""
+
+msgid "Retry"
+msgstr ""
+
+msgid "Change API key"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+msgid "Output folder…"
+msgstr ""
+
+msgid "Choose where generated images are saved"
+msgstr ""
+
+msgid "New session"
+msgstr ""
+
+msgid "Rename session"
+msgstr ""
+
+msgid "Delete session"
+msgstr ""
+
+msgid "Use previous image as reference"
+msgstr ""
+
+msgid "When checked, the latest image of this session is sent along with your prompt so the model edits it instead of starting from scratch."
+msgstr ""
+
+msgid "Generate"
+msgstr ""
+
+msgid "OpenRouter did not return any image-capable models for this key."
+msgstr ""
+
+msgid "Saves to: {path}"
+msgstr ""
+
+msgid "Choose output folder for AI images"
+msgstr ""
+
+msgid "{n} message"
+msgstr ""
+
+msgid "{n} messages"
+msgstr ""
+
+msgid "Session {n}"
+msgstr ""
+
+msgid "Choose a new name:"
+msgstr ""
+
+msgid "Rename"
+msgstr ""
+
+msgid "Delete this session?"
+msgstr ""
+
+msgid "Generated image files on disk stay; only the chat history is removed."
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "No session"
+msgstr ""
+
+msgid "Click “New session” on the left to start."
+msgstr ""
+
+msgid "(model not set)"
+msgstr ""
+
+msgid "Model: {model}"
+msgstr ""
+
+msgid "Empty session — type a prompt below and press Generate."
+msgstr ""
+
+msgid "(empty prompt)"
+msgstr ""
+
+msgid "Type a prompt first."
+msgstr ""
+
+msgid "Pick a model first."
+msgstr ""
+
+msgid "Cannot save image: {err}"
+msgstr ""
+
+msgid "Generation failed"
+msgstr ""
+
+msgid "Unknown error"
+msgstr ""

@@ -38,6 +38,7 @@ from photoprint.core.settings import (  # noqa: E402
     save_session,
     save_settings,
 )
+from photoprint.ui.ai_generate_view import AIGenerateView  # noqa: E402
 from photoprint.ui.photo_list import PhotoListWidget  # noqa: E402
 from photoprint.ui.preview import PreviewWidget  # noqa: E402
 from photoprint.ui.print_dialog import PrintDialog  # noqa: E402
@@ -123,6 +124,10 @@ class MainWindow(Adw.ApplicationWindow):
         self._search_view = SearchView()
         self._search_view.connect("send-to-print", self._on_send_to_print)
 
+        # -- AI Generate page --------------------------------------------
+        self._ai_view = AIGenerateView(self._settings)
+        self._ai_view.connect("output-folder-ready", self._on_ai_output_folder_ready)
+
         # -- ViewStack switcher ------------------------------------------
         self._view_stack = Adw.ViewStack()
         self._view_stack.add_titled_with_icon(
@@ -130,6 +135,9 @@ class MainWindow(Adw.ApplicationWindow):
         )
         self._view_stack.add_titled_with_icon(
             main_paned, "print", _("Print"), "printer-symbolic"
+        )
+        self._view_stack.add_titled_with_icon(
+            self._ai_view, "ai", _("AI Generate"), "applications-graphics-symbolic"
         )
         # Стартуем на вкладке Search — обычный сценарий «найти фото и
         # отправить на печать», поэтому первая видимая вкладка — поиск.
@@ -178,18 +186,26 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_view_changed(self, *_args) -> None:
         """Show print-only action buttons only on the Print page."""
-        is_print = self._view_stack.get_visible_child_name() == "print"
+        active = self._view_stack.get_visible_child_name()
+        is_print = active == "print"
         self._save_pdf_btn.set_visible(is_print)
         self._print_btn.set_visible(is_print)
         self._presets_menu_btn.set_visible(is_print)
         # При входе на Search скролл должен быть сверху (свежие фото — там).
-        if not is_print:
+        if active == "search":
             GLib.idle_add(self._search_view.scroll_to_top)
 
     def _on_send_to_print(self, _view, paths) -> None:
         """Принять выбранные фото из Search и переключиться на Print."""
         self._photo_list.add_paths([Path(p) for p in paths])
         self._view_stack.set_visible_child_name("print")
+
+    def _on_ai_output_folder_ready(self, _view, folder_path: str) -> None:
+        """AI-вкладка сгенерила картинку — Search-индекс должен её увидеть."""
+        try:
+            self._search_view.register_external_folder(Path(folder_path))
+        except Exception:  # noqa: BLE001 — UI не должен валиться из-за сторонней папки
+            logger.exception("Failed to register AI output folder %s", folder_path)
 
     # -- Shortcuts -----------------------------------------------------------
 
